@@ -9,16 +9,16 @@ import (
 )
 
 func TestSearchCmd(t *testing.T) {
-	// 1. テスト用のファイルを作成（t.TempDir() はテスト終了時に自動削除されます）
+	// 1. Create a temporary test file (t.TempDir() will be automatically removed after the test)
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "sample.txt")
 	fileContent := "Hello World\nhello Go\nHELLO Cobra"
 
 	if err := os.WriteFile(testFile, []byte(fileContent), 0o644); err != nil {
-		t.Fatalf("テストファイルの作成に失敗しました: %v", err)
+		t.Fatalf("Failed to create test file: %v", err)
 	}
 
-	// 2. テーブル駆動テストケースの定義
+	// 2. Define table-driven test cases
 	tests := []struct {
 		name         string
 		args         []string
@@ -27,36 +27,37 @@ func TestSearchCmd(t *testing.T) {
 		errContains  string
 	}{
 		{
-			name:         "正常系: 大文字小文字を区別して検索 (1回一致)",
+			name:         "Normal case: Case-sensitive search (1 match)",
 			args:         []string{"search", "-f", testFile, "-t", "hello"},
-			wantCountStr: "[hello]の出現回数: 1回",
+			wantCountStr: "Count of[hello]: 1",
 			wantErr:      false,
 		},
 		{
-			name:         "正常系: 大文字小文字を無視して検索 (-i 指定で 3回一致)",
+			name:         "Normal case: Case-insensitive search (-i, 3 matches)",
 			args:         []string{"search", "-f", testFile, "-t", "hello", "-i"},
-			wantCountStr: "[hello]の出現回数: 3回",
+			wantCountStr: "Count of[hello]: 3",
 			wantErr:      false,
 		},
 		{
-			name:        "異常系: 存在しないファイルパス",
+			name:        "Error case: Nonexistent file path",
 			args:        []string{"search", "-f", filepath.Join(tmpDir, "not_exist.txt"), "-t", "hello"},
 			wantErr:     true,
-			errContains: "searching your file is failed",
+			errContains: "cannot open",
 		},
 		{
-			name:    "異常系: 必須フラグ (--target) なし",
+			name:    "Error case: Missing required flag (--target)",
 			args:    []string{"search", "-f", testFile},
-			wantErr: true, // Cobraが自動でエラーを返します
+			wantErr: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// テストごとにグローバル変数と Cobra のフラグ状態をリセット
+			// Reset global variables and Cobra flag states for each test
 			filePath = ""
 			searchTarget = ""
 			ignoreCase = false
+
 			if f := searchCmd.Flags().Lookup("file"); f != nil {
 				f.Changed = false
 			}
@@ -67,34 +68,33 @@ func TestSearchCmd(t *testing.T) {
 				f.Changed = false
 			}
 
-			// 標準出力・エラー出力を受け取るバッファを作成
+			// Buffers to capture stdout and stderr
 			outBuf := new(bytes.Buffer)
 			errBuf := new(bytes.Buffer)
 
-			// Cobraコマンドにバッファと引数をセット
 			rootCmd.SetOut(outBuf)
 			rootCmd.SetErr(errBuf)
 			rootCmd.SetArgs(tt.args)
 
-			// コマンド実行
+			// Execute command
 			err := rootCmd.Execute()
 
-			// エラーの検証
+			// Validate error result
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("Execute() error = %v, wantErr %v", err, tt.wantErr)
 			}
 
 			if tt.wantErr && tt.errContains != "" {
 				if !strings.Contains(err.Error(), tt.errContains) {
-					t.Errorf("期待するエラー文字列: %q, 実際のエラー: %q", tt.errContains, err.Error())
+					t.Errorf("Expected error string: %q, actual error: %q", tt.errContains, err.Error())
 				}
 			}
 
-			// 正常系の出力メッセージの検証
+			// Validate output for normal cases
 			if !tt.wantErr && tt.wantCountStr != "" {
 				output := outBuf.String()
 				if !strings.Contains(output, tt.wantCountStr) {
-					t.Errorf("出力に期待する文字列が含まれていません。\n期待値: %q\n実際の出力:\n%s", tt.wantCountStr, output)
+					t.Errorf("Expected output string not found.\nExpected: %q\nActual output:\n%s", tt.wantCountStr, output)
 				}
 			}
 		})

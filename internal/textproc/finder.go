@@ -10,7 +10,6 @@ type SearchOptions struct {
 	IgnoreCase bool
 }
 
-/*  */
 func CountOccurrences(r io.Reader, target string, opts SearchOptions) (int, error) {
 	if target == "" {
 		return 0, nil
