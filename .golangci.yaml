@@ -15,6 +15,3 @@ formatters:
   enable:
     - goimports
     - gofumpt        # コードフォーマットのチェック
-
-issues:
-  exclude-use-default: false
