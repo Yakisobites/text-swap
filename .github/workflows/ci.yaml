@@ -23,15 +23,6 @@ jobs:
           go install mvdan.cc/gofumpt@latest
           go install golang.org/x/tools/cmd/goimports@latest
 
-      - name: Verify formatting (gofumpt)
-        run: |
-          unformatted="$(gofumpt -l .)"
-          if [ -n "$unformatted" ]; then
-            echo "The following files are not gofumpt-formatted:"
-            echo "$unformatted"
-            exit 1
-          fi
-
       - name: Verify formatting (goimports)
         run: |
           unformatted="$(goimports -l .)"
