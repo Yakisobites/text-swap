@@ -3,48 +3,52 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"strings"
+	"text-swap/internal/textproc"
 
 	"github.com/spf13/cobra"
 )
 
 var (
-	filePath   string
-	word       string
-	ignoreCase bool
+	filePath     string
+	searchTarget string
+	ignoreCase   bool
 )
 
 var searchCmd = &cobra.Command{
 	Use:   "search",
-	Short: "Search and display the specified file's content",
+	Short: "Search for a word in the specified file and display the number of occurrences.",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if filePath == "" {
-			return fmt.Errorf("set your filepath(--file or -f)")
-		}
-		content, err := os.ReadFile(filePath)
+		file, err := os.Open(filePath)
 		if err != nil {
-			return fmt.Errorf("searching your file is failed: %w", err)
+			return fmt.Errorf("cannot open a file: %w", err)
 		}
-		cmd.Printf("Target Word: %s \n", word)
-		cmd.Println("--- Contents of your file ---")
-		cmd.Print(string(content))
+		defer func() {
+			_ = file.Close()
+		}()
 
-		count := 0
-		if ignoreCase {
-			count = strings.Count(strings.ToLower(string(content)), strings.ToLower(word))
-		} else {
-			count = strings.Count(string(content), word)
+		opts := textproc.SearchOptions{
+			IgnoreCase: ignoreCase,
 		}
-		cmd.Printf("[%s]の出現回数: %d回\n", word, count)
+
+		count, err := textproc.CountOccurrences(file, searchTarget, opts)
+		if err != nil {
+			return fmt.Errorf("error occurred while searching: %w", err)
+		}
+
+		cmd.Printf("Target Word: %s \n", searchTarget)
+		cmd.Printf("Count of[%s]: %d \n", searchTarget, count)
+
 		return nil
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(searchCmd)
-	searchCmd.Flags().StringVarP(&filePath, "file", "f", "your filepath", "setting your filePath")
+	searchCmd.Flags().StringVarP(&filePath, "file", "f", "", "A file path to read")
 	_ = searchCmd.MarkFlagRequired("file")
-	searchCmd.Flags().StringVarP(&word, "target", "t", "target word", "")
+
+	searchCmd.Flags().StringVarP(&searchTarget, "target", "t", "", "A word for search")
 	_ = searchCmd.MarkFlagRequired("target")
-	searchCmd.Flags().BoolVarP(&ignoreCase, "ignore-case", "i", false, "Search while ignoring case")
+
+	searchCmd.Flags().BoolVarP(&ignoreCase, "ignore-case", "i", false, "Case-insensitive search")
 }

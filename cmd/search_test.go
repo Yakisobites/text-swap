@@ -55,7 +55,7 @@ func TestSearchCmd(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// テストごとにグローバル変数と Cobra のフラグ状態をリセット
 			filePath = ""
-			word = ""
+			searchTarget = ""
 			ignoreCase = false
 			if f := searchCmd.Flags().Lookup("file"); f != nil {
 				f.Changed = false
