@@ -1,0 +1,46 @@
+version: '3'
+
+tasks:
+  # デフォルト（`task` とだけ打った場合）は一括チェックを走らせる
+  default:
+    cmds:
+      - task: check
+
+  # コードの自動整形
+  fmt:
+    cmds:
+      - gofumpt -w .
+
+  # リントチェック
+  lint:
+    cmds:
+      - golangci-lint run
+
+  # 通常のテスト実行（詳細出力付き）
+  test:
+    cmds:
+      - go test -v ./...
+
+  # テストのカバレッジ計測＆結果表示
+  test:cover:
+    cmds:
+      - go test -coverprofile=coverage.out ./...
+      - go tool cover -func=coverage.out
+
+  # カバレッジ結果をブラウザで視覚的に確認
+  test:html:
+    deps: [test:cover]
+    cmds:
+      - go tool cover -html=coverage.out
+
+  # アプリのビルド
+  build:
+    cmds:
+      - go build -o bin/app.exe .
+
+  # フォーマット・リント・テストを一気に実行
+  check:
+    cmds:
+      - task: fmt
+      - task: lint
+      - task: test

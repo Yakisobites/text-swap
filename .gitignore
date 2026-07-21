@@ -1,0 +1,37 @@
+# --- ビルド成果物・バイナリ ---
+# `task build` などで生成される実行ファイル
+/bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+/dist
+
+# テスト用に生成されたバイナリ
+*.test
+
+# --- テスト・カバレッジ関連 ---
+# `task test:cover` などで生成される出力ファイル
+*.out
+*.coverage
+*.html
+
+# --- 開発ツール・環境固有のファイル ---
+# Windows特有のシステムファイル
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# VS Codeの設定（個人設定の競合を防ぐ場合）
+# ※ チーム全体で設定を共有したい場合は .vscode/ を除外しないこともあります
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# --- 依存関係・環境変数 ---
+# 秘密情報（APIキーなど）が含まれる環境変数ファイル
+.env
+.env.*
