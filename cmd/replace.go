@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"io"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -49,10 +50,13 @@ func (o *replaceOptions) run(cmd *cobra.Command) error {
 		return fmt.Errorf("cannot open input file: %w", err)
 	}
 	defer func() {
+		// Reading file error on close can be safely ignored
 		_ = inFile.Close()
 	}()
 
-	var outFile *os.File
+	var outFile io.Writer
+	var closeFn func() error
+
 	if o.outPath != "" {
 		if o.outPath == o.filePath {
 			return fmt.Errorf("output path must be different from input file")
@@ -61,13 +65,18 @@ func (o *replaceOptions) run(cmd *cobra.Command) error {
 		if err != nil {
 			return fmt.Errorf("cannot create output file: %w", err)
 		}
-		defer func() {
-			_ = f.Close()
-		}()
 		outFile = f
+		closeFn = f.Close
 	} else {
-		outFile = os.Stdout
+		// Use cmd.OutOrStdout() instead of os.Stdout directly for testing
+		outFile = cmd.OutOrStdout()
+		closeFn = func() error { return nil }
 	}
+
+	// Ensure output file is properly closed
+	defer func() {
+		_ = closeFn()
+	}()
 
 	procOpts := textproc.ReplaceOptions{
 		IgnoreCase: o.ignoreCase,
@@ -76,6 +85,11 @@ func (o *replaceOptions) run(cmd *cobra.Command) error {
 	count, err := textproc.ReplaceWords(inFile, outFile, o.target, o.replacement, procOpts)
 	if err != nil {
 		return fmt.Errorf("error occurred while replacing: %w", err)
+	}
+
+	// Flush and check close error explicitly for output file
+	if err := closeFn(); err != nil {
+		return fmt.Errorf("cannot close output file: %w", err)
 	}
 
 	if o.outPath != "" {
