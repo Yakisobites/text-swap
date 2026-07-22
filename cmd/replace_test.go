@@ -120,3 +120,54 @@ func TestReplaceCmd_SameInputAndOutputFileError(t *testing.T) {
 		t.Errorf("Expected error when output path equals input path, got nil")
 	}
 }
+
+func TestReplaceCmd_PreservesLineEndingsAndFinalNewline_WithOutFlag(t *testing.T) {
+	tests := []struct {
+		name       string
+		input      string
+		target     string
+		repl       string
+		wantOutput string
+	}{
+		{
+			name:       "preserve CRLF and final newline",
+			input:      "foo\r\nbar\r\n",
+			target:     "bar",
+			repl:       "baz",
+			wantOutput: "foo\r\nbaz\r\n",
+		},
+		{
+			name:       "preserve no final newline",
+			input:      "foo\nbar",
+			target:     "foo",
+			repl:       "qux",
+			wantOutput: "qux\nbar",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			inputFile := filepath.Join(tmpDir, "input.txt")
+			outputFile := filepath.Join(tmpDir, "output.txt")
+
+			if err := os.WriteFile(inputFile, []byte(tt.input), 0o644); err != nil {
+				t.Fatalf("Failed to create temp input file: %v", err)
+			}
+
+			_, err := executeReplaceCmd("-f", inputFile, "-t", tt.target, "-r", tt.repl, "-o", outputFile)
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+
+			got, err := os.ReadFile(outputFile)
+			if err != nil {
+				t.Fatalf("Failed to read output file: %v", err)
+			}
+
+			if string(got) != tt.wantOutput {
+				t.Errorf("Expected output file content %q, got %q", tt.wantOutput, string(got))
+			}
+		})
+	}
+}
