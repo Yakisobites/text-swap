@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-// Helper function to execute the replace command isolatedly
+// Helper function to execute the replace command in isolatedly
 func executeReplaceCmd(args ...string) (string, error) {
 	buf := new(bytes.Buffer)
 	cmd := newReplaceCmd()

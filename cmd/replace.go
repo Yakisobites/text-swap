@@ -91,6 +91,7 @@ func (o *replaceOptions) run(cmd *cobra.Command) error {
 	if err := closeFn(); err != nil {
 		return fmt.Errorf("cannot close output file: %w", err)
 	}
+	closeFn = func() error { return nil }
 
 	if o.outPath != "" {
 		cmd.Printf("Replaced [%s] -> [%s] (%d occurrences) in %s\n", o.target, o.replacement, count, o.outPath)

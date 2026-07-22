@@ -34,7 +34,6 @@ func ReplaceWords(r io.Reader, w io.Writer, oldWord, newWord string, opts Replac
 		}
 	}
 
-	// isFirstLine := true
 	for {
 		line, err := reader.ReadString('\n')
 		if len(line) > 0 {
