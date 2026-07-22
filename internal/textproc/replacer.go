@@ -21,6 +21,7 @@ func ReplaceWords(r io.Reader, w io.Writer, oldWord, newWord string, opts Replac
 	}
 
 	scanner := bufio.NewScanner(r)
+	scanner.Buffer(make([]byte, 64*1024), 1024*1024)
 	writer := bufio.NewWriter(w)
 	defer func() {
 		_ = writer.Flush()
