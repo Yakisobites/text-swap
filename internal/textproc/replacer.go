@@ -20,7 +20,7 @@ func ReplaceWords(r io.Reader, w io.Writer, oldWord, newWord string, opts Replac
 		return 0, err
 	}
 
-	reader := bufio.NewReader(r)
+	reader := bufio.NewReaderSize(r, 64*1024)
 	writer := bufio.NewWriter(w)
 
 	totalReplaced := 0
@@ -42,9 +42,11 @@ func ReplaceWords(r io.Reader, w io.Writer, oldWord, newWord string, opts Replac
 			var count int
 
 			if opts.IgnoreCase {
-				matches := re.FindAllStringIndex(line, -1)
-				count = len(matches)
-				newLine = re.ReplaceAllString(line, newWord)
+				count = 0
+				newLine = re.ReplaceAllStringFunc(line, func(_ string) string {
+					count++
+					return newWord
+				})
 			} else {
 				count = strings.Count(line, oldWord)
 				newLine = strings.ReplaceAll(line, oldWord, newWord)

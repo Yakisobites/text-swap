@@ -38,6 +38,16 @@ func TestReplaceWords(t *testing.T) {
 			wantErr:    false,
 		},
 		{
+			name:       "Edge case: Ignore-case replacement treats $ literally",
+			input:      "Hello hello",
+			oldWord:    "hello",
+			newWord:    "$1",
+			opts:       ReplaceOptions{IgnoreCase: true},
+			wantOutput: "$1 $1",
+			wantCount:  2,
+			wantErr:    false,
+		},
+		{
 			name:       "Normal case: Replace multiple occurrences in a single line",
 			input:      "apple banana apple",
 			oldWord:    "apple",
