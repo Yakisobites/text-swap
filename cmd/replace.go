@@ -22,7 +22,7 @@ func newReplaceCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "replace",
-		Short: "Replace target words in the specified file",
+		Short: "Replace target string in the specified file",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return opts.run(cmd)
 		},

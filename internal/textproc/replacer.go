@@ -20,11 +20,8 @@ func ReplaceWords(r io.Reader, w io.Writer, oldWord, newWord string, opts Replac
 		return 0, err
 	}
 
-	scanner := bufio.NewScanner(r)
+	reader := bufio.NewReader(r)
 	writer := bufio.NewWriter(w)
-	defer func() {
-		_ = writer.Flush()
-	}()
 
 	totalReplaced := 0
 
@@ -37,37 +34,38 @@ func ReplaceWords(r io.Reader, w io.Writer, oldWord, newWord string, opts Replac
 		}
 	}
 
-	isFirstLine := true
-	for scanner.Scan() {
-		line := scanner.Text()
+	// isFirstLine := true
+	for {
+		line, err := reader.ReadString('\n')
+		if len(line) > 0 {
+			var newLine string
+			var count int
 
-		if !isFirstLine {
-			if _, err := writer.WriteString("\n"); err != nil {
+			if opts.IgnoreCase {
+				matches := re.FindAllStringIndex(line, -1)
+				count = len(matches)
+				newLine = re.ReplaceAllString(line, newWord)
+			} else {
+				count = strings.Count(line, oldWord)
+				newLine = strings.ReplaceAll(line, oldWord, newWord)
+			}
+
+			totalReplaced += count
+
+			if _, err := writer.WriteString(newLine); err != nil {
 				return 0, err
 			}
 		}
-		isFirstLine = false
 
-		var newLine string
-		var count int
-
-		if opts.IgnoreCase {
-			matches := re.FindAllStringIndex(line, -1)
-			count = len(matches)
-			newLine = re.ReplaceAllString(line, newWord)
-		} else {
-			count = strings.Count(line, oldWord)
-			newLine = strings.ReplaceAll(line, oldWord, newWord)
-		}
-
-		totalReplaced += count
-
-		if _, err := writer.WriteString(newLine); err != nil {
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
 			return 0, err
 		}
 	}
 
-	if err := scanner.Err(); err != nil {
+	if err := writer.Flush(); err != nil {
 		return 0, err
 	}
 
