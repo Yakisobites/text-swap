@@ -54,6 +54,9 @@ func (o *replaceOptions) run(cmd *cobra.Command) error {
 
 	var outFile *os.File
 	if o.outPath != "" {
+		if o.outPath == o.filePath {
+			return fmt.Errorf("output path must be different from input file")
+		}
 		f, err := os.Create(o.outPath)
 		if err != nil {
 			return fmt.Errorf("cannot create output file: %w", err)
