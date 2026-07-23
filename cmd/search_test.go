@@ -8,6 +8,19 @@ import (
 	"testing"
 )
 
+// Helper function to execute the search command in isolation.
+func executeSearchCmd(args ...string) (string, error) {
+	buf := new(bytes.Buffer)
+	cmd := newSearchCmd()
+
+	cmd.SetOut(buf)
+	cmd.SetErr(buf)
+	cmd.SetArgs(args)
+
+	err := cmd.Execute()
+	return buf.String(), err
+}
+
 func TestSearchCmd(t *testing.T) {
 	// 1. Create a temporary test file (t.TempDir() will be automatically removed after the test)
 	tmpDir := t.TempDir()
@@ -87,35 +100,8 @@ func TestSearchCmd(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Reset global variables and Cobra flag states for each test
-			filePath = ""
-			searchTarget = ""
-			configPath = ""
-			ignoreCase = false
-
-			if f := searchCmd.Flags().Lookup("file"); f != nil {
-				f.Changed = false
-			}
-			if f := searchCmd.Flags().Lookup("target"); f != nil {
-				f.Changed = false
-			}
-			if f := searchCmd.Flags().Lookup("config"); f != nil {
-				f.Changed = false
-			}
-			if f := searchCmd.Flags().Lookup("ignore-case"); f != nil {
-				f.Changed = false
-			}
-
 			// Buffers to capture stdout and stderr
-			outBuf := new(bytes.Buffer)
-			errBuf := new(bytes.Buffer)
-
-			rootCmd.SetOut(outBuf)
-			rootCmd.SetErr(errBuf)
-			rootCmd.SetArgs(tt.args)
-
-			// Execute command
-			err := rootCmd.Execute()
+			out, err := executeSearchCmd(tt.args[1:]...)
 
 			// Validate error result
 			if (err != nil) != tt.wantErr {
@@ -130,16 +116,14 @@ func TestSearchCmd(t *testing.T) {
 
 			// Validate output for normal cases
 			if !tt.wantErr && tt.wantCountStr != "" {
-				output := outBuf.String()
-				if !strings.Contains(output, tt.wantCountStr) {
-					t.Errorf("Expected output string not found.\nExpected: %q\nActual output:\n%s", tt.wantCountStr, output)
+				if !strings.Contains(out, tt.wantCountStr) {
+					t.Errorf("Expected output string not found.\nExpected: %q\nActual output:\n%s", tt.wantCountStr, out)
 				}
 			}
 
 			if tt.name == "Config case: Multiple rules are processed sequentially" {
-				output := outBuf.String()
-				if !strings.Contains(output, "Count of[Go]: 1") {
-					t.Errorf("Expected output string for second rule not found.\nActual output:\n%s", output)
+				if !strings.Contains(out, "Count of[Go]: 1") {
+					t.Errorf("Expected output string for second rule not found.\nActual output:\n%s", out)
 				}
 			}
 		})
