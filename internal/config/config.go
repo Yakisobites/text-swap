@@ -1,6 +1,7 @@
 package config
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 
@@ -21,6 +22,10 @@ type Config struct {
 
 // LoadRules automatically detects whether the input data is JSON or YAML and loads it.
 func LoadRules(data []byte) ([]Rule, error) {
+	// Guard clause: Return error if input is empty or contains only whitespace
+	if len(bytes.TrimSpace(data)) == 0 {
+		return nil, fmt.Errorf("input data is empty")
+	}
 	if json.Valid(data) {
 		var rules []Rule
 		if err := json.Unmarshal(data, &rules); err == nil {
