@@ -1,0 +1,11 @@
+[
+    {
+        "target": "foo",
+        "replacement": "bar",
+        "ignore_case": true
+    },
+    {
+        "target": "hello",
+        "replacement": "world"
+    }
+]
