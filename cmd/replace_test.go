@@ -171,3 +171,24 @@ func TestReplaceCmd_PreservesLineEndingsAndFinalNewline_WithOutFlag(t *testing.T
 		})
 	}
 }
+
+func TestReplaceCmd_EmptyTargetString(t *testing.T) {
+	tmpDir := t.TempDir()
+	inputFile := filepath.Join(tmpDir, "input.txt")
+	if err := os.WriteFile(inputFile, []byte("test content"), 0o644); err != nil {
+		t.Fatalf("Failed to create temp file: %v", err)
+	}
+
+	// Test passing an explicitly empty string to --target
+	_, err := executeReplaceCmd("-f", inputFile, "-t", "", "-r", "x")
+
+	// If the condition slips through (e.g., using `if o.target != ""`),
+	// loadRules will fall back to returning this specific error.
+	// We must ensure this validation error is not returned when -t "" is explicitly provided.
+	if err != nil && strings.Contains(err.Error(), "either --target or --config must be provided") {
+		t.Fatalf("Flag slip-through detected: --target \"\" was ignored and treated as missing")
+	}
+
+	// Note: If textproc.ReplaceAll natively returns an error for an empty target,
+	// that error is acceptable here as it means the flag was correctly parsed and passed to the logic layer.
+}
