@@ -73,7 +73,7 @@ func TestReplaceCmd_OutFlag(t *testing.T) {
 	}
 
 	// Verify command message on stdout
-	expectedMsg := "Replaced [apple] -> [orange] (2 occurrences)"
+	expectedMsg := "Replaced 2 occurrences in " + outputFile
 	if !strings.Contains(out, expectedMsg) {
 		t.Errorf("Expected message containing %q, got %q", expectedMsg, out)
 	}
