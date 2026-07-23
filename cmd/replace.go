@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"text-swap/internal/config"
 	"text-swap/internal/textproc"
 )
 
@@ -14,6 +15,7 @@ type replaceOptions struct {
 	filePath    string
 	outPath     string
 	target      string
+	configPath  string
 	replacement string
 	ignoreCase  bool
 }
@@ -33,7 +35,12 @@ func newReplaceCmd() *cobra.Command {
 	_ = cmd.MarkFlagRequired("file")
 
 	cmd.Flags().StringVarP(&opts.target, "target", "t", "", "A word to be replaced")
-	_ = cmd.MarkFlagRequired("target")
+
+	cmd.Flags().StringVarP(&opts.configPath, "config", "c", "", "A config file path contains worlds to be replaced")
+
+	// Ensure that either --target or --config is provided, but not both
+	cmd.MarkFlagsOneRequired("target", "config")
+	cmd.MarkFlagsMutuallyExclusive("target", "config")
 
 	cmd.Flags().StringVarP(&opts.replacement, "replacement", "r", "", "A new word to replace with")
 
@@ -53,6 +60,28 @@ func (o *replaceOptions) run(cmd *cobra.Command) error {
 		// Reading file error on close can be safely ignored
 		_ = inFile.Close()
 	}()
+
+	var rules []config.Rule
+	if o.configPath != "" {
+		// Load rules from config file
+		data, err := os.ReadFile(o.configPath)
+		if err != nil {
+			return fmt.Errorf("failed to read config file: %w", err)
+		}
+
+		rules, err = config.LoadRules(data)
+		if err != nil {
+			return fmt.Errorf("failed to parse config file: %w", err)
+		}
+	} else if o.target != "" {
+		// Build a single rule from CLI flags
+		rules = []config.Rule{
+			{
+				Target:      o.target,
+				Replacement: o.replacement,
+			},
+		}
+	}
 
 	var outFile io.Writer
 	var closeFn func() error
@@ -82,9 +111,14 @@ func (o *replaceOptions) run(cmd *cobra.Command) error {
 		IgnoreCase: o.ignoreCase,
 	}
 
-	count, err := textproc.ReplaceWords(inFile, outFile, o.target, o.replacement, procOpts)
-	if err != nil {
-		return fmt.Errorf("error occurred while replacing: %w", err)
+	for _, rule := range rules {
+		count, err := textproc.ReplaceWords(inFile, outFile, rule.Target, rule.Replacement, procOpts)
+		if err != nil {
+			return fmt.Errorf("error occurred while replacing: %w", err)
+		}
+		if o.outPath != "" {
+			cmd.Printf("Replaced [%s] -> [%s] (%d occurrences) in %s\n", rule.Target, rule.Replacement, count, o.outPath)
+		}
 	}
 
 	// Flush and check close error explicitly for output file
