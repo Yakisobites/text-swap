@@ -15,7 +15,7 @@ type Rule struct {
 	IgnoreCase  bool   `json:"ignore_case" yaml:"ignore_case"`
 }
 
-// Config represents the top-level configuration for YAML.
+// Config represents the top-level configuration for YAML/JSON.
 type Config struct {
 	Rules []Rule `json:"rules" yaml:"rules"`
 }

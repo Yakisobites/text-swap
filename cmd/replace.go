@@ -36,7 +36,7 @@ func newReplaceCmd() *cobra.Command {
 
 	cmd.Flags().StringVarP(&opts.target, "target", "t", "", "A word to be replaced")
 
-	cmd.Flags().StringVarP(&opts.configPath, "config", "c", "", "A config file path contains words to be replaced")
+	cmd.Flags().StringVarP(&opts.configPath, "config", "c", "", "Path to a YAML/JSON config file containing replacement rules")
 
 	// Ensure that either --target or --config is provided, but not both
 	cmd.MarkFlagsOneRequired("target", "config")
