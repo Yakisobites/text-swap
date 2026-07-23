@@ -1,9 +1,12 @@
 package cmd
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"os"
 
+	"text-swap/internal/config"
 	"text-swap/internal/textproc"
 
 	"github.com/spf13/cobra"
@@ -12,6 +15,7 @@ import (
 var (
 	filePath     string
 	searchTarget string
+	configPath   string
 	ignoreCase   bool
 )
 
@@ -27,11 +31,42 @@ var searchCmd = &cobra.Command{
 			_ = file.Close()
 		}()
 
+		input, err := io.ReadAll(file)
+		if err != nil {
+			return fmt.Errorf("cannot read input file: %w", err)
+		}
+
+		if configPath != "" {
+			data, err := os.ReadFile(configPath)
+			if err != nil {
+				return fmt.Errorf("failed to read config file: %w", err)
+			}
+
+			rules, err := config.LoadRules(data)
+			if err != nil {
+				return fmt.Errorf("failed to parse config file: %w", err)
+			}
+
+			for _, rule := range rules {
+				opts := textproc.SearchOptions{IgnoreCase: rule.IgnoreCase}
+
+				count, err := textproc.CountOccurrences(bytes.NewReader(input), rule.Target, opts)
+				if err != nil {
+					return fmt.Errorf("error occurred while searching: %w", err)
+				}
+
+				cmd.Printf("Target Word: %s \n", rule.Target)
+				cmd.Printf("Count of[%s]: %d \n", rule.Target, count)
+			}
+
+			return nil
+		}
+
 		opts := textproc.SearchOptions{
 			IgnoreCase: ignoreCase,
 		}
 
-		count, err := textproc.CountOccurrences(file, searchTarget, opts)
+		count, err := textproc.CountOccurrences(bytes.NewReader(input), searchTarget, opts)
 		if err != nil {
 			return fmt.Errorf("error occurred while searching: %w", err)
 		}
@@ -49,7 +84,10 @@ func init() {
 	_ = searchCmd.MarkFlagRequired("file")
 
 	searchCmd.Flags().StringVarP(&searchTarget, "target", "t", "", "A word for search")
-	_ = searchCmd.MarkFlagRequired("target")
+	searchCmd.Flags().StringVarP(&configPath, "config", "c", "", "Path to a YAML/JSON config file containing search rules")
+
+	searchCmd.MarkFlagsOneRequired("target", "config")
+	searchCmd.MarkFlagsMutuallyExclusive("target", "config")
 
 	searchCmd.Flags().BoolVarP(&ignoreCase, "ignore-case", "i", false, "Case-insensitive search")
 }
