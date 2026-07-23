@@ -70,6 +70,26 @@ rules:
 			want:    nil,
 			wantErr: true,
 		},
+		{
+			name:    "JSON with empty rules array",
+			input:   `{"rules": []}`,
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "YAML with empty rules",
+			input: `
+		rules:
+		`,
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name:    "JSON with unrelated keys",
+			input:   `{"foo": "bar"}`,
+			want:    nil,
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {

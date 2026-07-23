@@ -26,27 +26,34 @@ func LoadRules(data []byte) ([]Rule, error) {
 	if len(bytes.TrimSpace(data)) == 0 {
 		return nil, fmt.Errorf("input data is empty")
 	}
+	var rules []Rule
+
+	// Try parsing as JSON
 	if json.Valid(data) {
-		var rules []Rule
-		if err := json.Unmarshal(data, &rules); err == nil {
+		// Top-level array: [{"target": "..."}]
+		if err := json.Unmarshal(data, &rules); err == nil && len(rules) > 0 {
 			return rules, nil
 		}
 
+		// Top-level object: {"rules": [...]}`
 		var config Config
-		if err := json.Unmarshal(data, &config); err == nil {
+		if err := json.Unmarshal(data, &config); err == nil && len(config.Rules) > 0 {
 			return config.Rules, nil
 		}
 	}
 
+	// Try parsing as YAML
+	// Top-level object: rules: [...]
 	var config Config
 	if err := yaml.Unmarshal(data, &config); err == nil && len(config.Rules) > 0 {
 		return config.Rules, nil
 	}
 
-	var rules []Rule
-	if err := yaml.Unmarshal(data, &rules); err == nil {
+	// Top-level array: - target: "..."
+	if err := yaml.Unmarshal(data, &rules); err == nil && len(rules) > 0 {
 		return rules, nil
 	}
 
-	return nil, fmt.Errorf("failed to parse data as JSON or YAML")
+	// If no rules were loaded or data format is invalid
+	return nil, fmt.Errorf("no valid rules found in the input data")
 }
