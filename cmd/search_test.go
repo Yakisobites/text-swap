@@ -42,13 +42,13 @@ func TestSearchCmd(t *testing.T) {
 		{
 			name:         "Normal case: Case-sensitive search (1 match)",
 			args:         []string{"search", "-f", testFile, "-t", "hello"},
-			wantCountStr: "Count of[hello]: 1",
+			wantCountStr: "Count of [hello]: 1",
 			wantErr:      false,
 		},
 		{
 			name:         "Normal case: Case-insensitive search (-i, 3 matches)",
 			args:         []string{"search", "-f", testFile, "-t", "hello", "-i"},
-			wantCountStr: "Count of[hello]: 3",
+			wantCountStr: "Count of [hello]: 3",
 			wantErr:      false,
 		},
 		{
@@ -77,7 +77,7 @@ func TestSearchCmd(t *testing.T) {
 		{
 			name:         "Config case: Multiple rules are processed sequentially",
 			args:         []string{"search", "-f", testFile, "-c", filepath.Join(tmpDir, "rules.yaml")},
-			wantCountStr: "Count of[Hello]: 3",
+			wantCountStr: "Count of [Hello]: 3",
 			wantErr:      false,
 		},
 	}
@@ -122,7 +122,7 @@ func TestSearchCmd(t *testing.T) {
 			}
 
 			if tt.name == "Config case: Multiple rules are processed sequentially" {
-				if !strings.Contains(out, "Count of[Go]: 1") {
+				if !strings.Contains(out, "Count of [Go]: 1") {
 					t.Errorf("Expected output string for second rule not found.\nActual output:\n%s", out)
 				}
 			}
