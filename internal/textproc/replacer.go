@@ -1,74 +1,53 @@
 package textproc
 
 import (
-	"bufio"
 	"io"
 	"regexp"
 	"strings"
+
+	"text-swap/internal/config"
 )
 
-// ReplaceOptions represents options for the replacement process.
-type ReplaceOptions struct {
-	IgnoreCase bool
-}
-
-// ReplaceWords reads text from r, replaces oldWord with newWord, and writes the result to w.
-// It returns the total number of replacements made.
-func ReplaceWords(r io.Reader, w io.Writer, oldWord, newWord string, opts ReplaceOptions) (int, error) {
-	if oldWord == "" {
-		_, err := io.Copy(w, r)
+// ReplaceAll applies multiple rules sequentially to the input text in memory and writes to the output writer.
+func ReplaceAll(r io.Reader, w io.Writer, rules []config.Rule) (int, error) {
+	// Read entire content into memory for multi-rule chain replacement
+	content, err := io.ReadAll(r)
+	if err != nil {
 		return 0, err
 	}
 
-	reader := bufio.NewReaderSize(r, 64*1024)
-	writer := bufio.NewWriter(w)
+	text := string(content)
+	totalReplacements := 0
 
-	totalReplaced := 0
-
-	var re *regexp.Regexp
-	var err error
-	if opts.IgnoreCase {
-		re, err = regexp.Compile("(?i)" + regexp.QuoteMeta(oldWord))
-		if err != nil {
-			return 0, err
+	for _, rule := range rules {
+		if rule.Target == "" {
+			continue
 		}
-	}
 
-	for {
-		line, err := reader.ReadString('\n')
-		if len(line) > 0 {
-			var newLine string
-			var count int
-
-			if opts.IgnoreCase {
-				count = 0
-				newLine = re.ReplaceAllStringFunc(line, func(_ string) string {
-					count++
-					return newWord
-				})
-			} else {
-				count = strings.Count(line, oldWord)
-				newLine = strings.ReplaceAll(line, oldWord, newWord)
-			}
-
-			totalReplaced += count
-
-			if _, err := writer.WriteString(newLine); err != nil {
+		var count int
+		if rule.IgnoreCase {
+			// Compile case-insensitive regular expression for each rule
+			re, err := regexp.Compile("(?i)" + regexp.QuoteMeta(rule.Target))
+			if err != nil {
 				return 0, err
 			}
+
+			text = re.ReplaceAllStringFunc(text, func(_ string) string {
+				count++
+				return rule.Replacement
+			})
+		} else {
+			// Standard exact match replacement
+			count = strings.Count(text, rule.Target)
+			text = strings.ReplaceAll(text, rule.Target, rule.Replacement)
 		}
 
-		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			return 0, err
-		}
+		totalReplacements += count
 	}
 
-	if err := writer.Flush(); err != nil {
+	if _, err := io.WriteString(w, text); err != nil {
 		return 0, err
 	}
 
-	return totalReplaced, nil
+	return totalReplacements, nil
 }
