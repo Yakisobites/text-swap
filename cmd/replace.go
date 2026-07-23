@@ -93,7 +93,10 @@ func (o *replaceOptions) run(cmd *cobra.Command) error {
 
 // loadRules determines the source of the replacement rules and loads them.
 func (o *replaceOptions) loadRules(cmd *cobra.Command) ([]config.Rule, error) {
-	if o.configPath != "" {
+	if cmd.Flags().Changed("config") {
+		if o.configPath == "" {
+			return nil, fmt.Errorf("--config was provided but is empty")
+		}
 		data, err := os.ReadFile(o.configPath)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read config file: %w", err)

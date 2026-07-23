@@ -63,6 +63,12 @@ func TestSearchCmd(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name:         "Edge case: Empty target string is explicitly provided",
+			args:         []string{"search", "-f", testFile, "--target", ""},
+			wantCountStr: "Count of []: 0",
+			wantErr:      false,
+		},
+		{
 			name:        "Error case: Invalid config path",
 			args:        []string{"search", "-f", testFile, "-c", filepath.Join(tmpDir, "missing.yaml")},
 			wantErr:     true,

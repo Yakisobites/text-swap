@@ -40,6 +40,7 @@ func newSearchCmd() *cobra.Command {
 	cmd.MarkFlagsMutuallyExclusive("target", "config")
 
 	cmd.Flags().BoolVarP(&opts.ignoreCase, "ignore-case", "i", false, "Case-insensitive search")
+	cmd.MarkFlagsMutuallyExclusive("config", "ignore-case")
 
 	return cmd
 }
@@ -60,7 +61,10 @@ func (o *searchOptions) run(cmd *cobra.Command) error {
 		return fmt.Errorf("cannot read input file: %w", err)
 	}
 
-	if o.configPath != "" {
+	if cmd.Flags().Changed("config") {
+		if o.configPath == "" {
+			return fmt.Errorf("--config was provided but is empty")
+		}
 		return o.runWithConfig(cmd, input)
 	}
 
