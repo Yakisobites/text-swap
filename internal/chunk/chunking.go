@@ -1,4 +1,4 @@
-package cmd
+package chunk
 
 import "os"
 
@@ -7,7 +7,7 @@ const (
 	defaultAutoChunkSizeBytes     = 64 * 1024
 )
 
-func resolveChunkSize(file *os.File, requested int) int {
+func ResolveChunkSize(file *os.File, requested int) int {
 	if requested > 0 {
 		return requested
 	}
@@ -24,10 +24,10 @@ func resolveChunkSize(file *os.File, requested int) int {
 	return 0
 }
 
-func prepareChunkSize(file *os.File, requested int) (int, error) {
+func PrepareChunkSize(file *os.File, requested int) (int, error) {
 	if _, err := file.Seek(0, 0); err != nil {
 		return 0, err
 	}
 
-	return resolveChunkSize(file, requested), nil
+	return ResolveChunkSize(file, requested), nil
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"text-swap/internal/chunk"
 	"text-swap/internal/config"
 	"text-swap/internal/textproc"
 
@@ -116,7 +117,7 @@ func (o *searchOptions) runSingleTarget(cmd *cobra.Command, file *os.File) error
 }
 
 func (o *searchOptions) countOccurrences(file *os.File, target string, opts textproc.SearchOptions) (int, error) {
-	chunkSize, err := prepareChunkSize(file, o.chunkSize)
+	chunkSize, err := chunk.PrepareChunkSize(file, o.chunkSize)
 	if err != nil {
 		return 0, fmt.Errorf("cannot seek input file: %w", err)
 	}

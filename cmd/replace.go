@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"text-swap/internal/chunk"
 	"text-swap/internal/config"
 	"text-swap/internal/textproc"
 )
@@ -146,7 +147,7 @@ func (o *replaceOptions) setupOutput(cmd *cobra.Command) (io.Writer, func() erro
 }
 
 func (o *replaceOptions) replaceAll(inFile *os.File, out io.Writer, rules []config.Rule) (int, error) {
-	chunkSize, err := prepareChunkSize(inFile, o.chunkSize)
+	chunkSize, err := chunk.PrepareChunkSize(inFile, o.chunkSize)
 	if err != nil {
 		return 0, fmt.Errorf("cannot seek input file: %w", err)
 	}
