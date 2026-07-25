@@ -1,55 +1,62 @@
 version: '3'
 
 tasks:
-  # 依存パッケージインストール
+  # Install dependency tools
   setup:
     cmds:
       - go install golang.org/x/tools/gopls@latest
       - go install github.com/spf13/cobra-cli@latest
       - go install github.com/goreleaser/goreleaser/v2@latest
-      - go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2
+      - go install github.com/golangci/golangci-lint/cmd/golangci-lint@v2.12.2
       - go install mvdan.cc/gofumpt@latest
+      - go install golang.org/x/vuln/cmd/govulncheck@latest
 
-  # デフォルト（`task` とだけ打った場合）は一括チェックを走らせる
+  # Run all checks by default
   default:
     cmds:
       - task: check
 
-  # コードの自動整形
+  # Format code
   fmt:
     cmds:
       - gofumpt -w .
 
-  # リントチェック
+  # Run linter
   lint:
     cmds:
       - golangci-lint run
 
-  # 通常のテスト実行（詳細出力付き）
+  # Run vulnerability check
+  vulncheck:
+    cmds:
+      - govulncheck ./...
+
+  # Run tests
   test:
     cmds:
       - go test -v ./...
 
-  # テストのカバレッジ計測＆結果表示
+  # Measure test coverage
   test:cover:
     cmds:
       - go test -coverprofile=coverage.out ./...
       - go tool cover -func=coverage.out
 
-  # カバレッジ結果をブラウザで視覚的に確認
+  # Open coverage report in browser
   test:html:
     deps: [test:cover]
     cmds:
       - go tool cover -html=coverage.out
 
-  # アプリのビルド
+  # Build binary
   build:
     cmds:
       - go build -o bin/app.exe .
 
-  # フォーマット・リント・テストを一気に実行
+  # Run format, lint, vulnerability check, and tests sequentially
   check:
     cmds:
       - task: fmt
       - task: lint
+      - task: vulncheck
       - task: test
