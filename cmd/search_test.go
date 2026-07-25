@@ -9,16 +9,17 @@ import (
 )
 
 // Helper function to execute the search command in isolation.
-func executeSearchCmd(args ...string) (string, error) {
-	buf := new(bytes.Buffer)
+func executeSearchCmd(args ...string) (string, string, error) {
+	stdoutBuf := new(bytes.Buffer)
+	stderrBuf := new(bytes.Buffer)
 	cmd := newSearchCmd()
 
-	cmd.SetOut(buf)
-	cmd.SetErr(buf)
+	cmd.SetOut(stdoutBuf)
+	cmd.SetErr(stderrBuf)
 	cmd.SetArgs(args)
 
 	err := cmd.Execute()
-	return buf.String(), err
+	return stdoutBuf.String(), stderrBuf.String(), err
 }
 
 func TestSearchCmd(t *testing.T) {
@@ -112,8 +113,8 @@ func TestSearchCmd(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Buffers to capture stdout and stderr
-			out, err := executeSearchCmd(tt.args[1:]...)
+			// Capture stdout and stderr separately because progress output goes to stderr.
+			out, _, err := executeSearchCmd(tt.args[1:]...)
 
 			// Validate error result
 			if (err != nil) != tt.wantErr {

@@ -63,6 +63,14 @@ func (o *replaceOptions) run(cmd *cobra.Command) error {
 		_ = inFile.Close()
 	}()
 
+	reader, finishProgress, err := newFileProgressReader(cmd, inFile, "replace")
+	if err != nil {
+		return err
+	}
+	defer func() {
+		_ = finishProgress()
+	}()
+
 	rules, err := o.loadRules(cmd)
 	if err != nil {
 		return err
@@ -76,7 +84,7 @@ func (o *replaceOptions) run(cmd *cobra.Command) error {
 		_ = closeFn()
 	}()
 
-	totalCount, err := o.replaceAll(inFile, outFile, rules)
+	totalCount, err := o.replaceAll(inFile, reader, outFile, rules)
 	if err != nil {
 		return fmt.Errorf("error occurred while replacing: %w", err)
 	}
@@ -146,17 +154,17 @@ func (o *replaceOptions) setupOutput(cmd *cobra.Command) (io.Writer, func() erro
 	return f, f.Close, nil
 }
 
-func (o *replaceOptions) replaceAll(inFile *os.File, out io.Writer, rules []config.Rule) (int, error) {
+func (o *replaceOptions) replaceAll(inFile *os.File, in io.Reader, out io.Writer, rules []config.Rule) (int, error) {
 	chunkSize, err := chunk.PrepareChunkSize(inFile, o.chunkSize)
 	if err != nil {
 		return 0, fmt.Errorf("cannot seek input file: %w", err)
 	}
 
 	if chunkSize > 0 {
-		return textproc.ReplaceAllChunked(inFile, out, rules, chunkSize)
+		return textproc.ReplaceAllChunked(in, out, rules, chunkSize)
 	}
 
-	return textproc.ReplaceAll(inFile, out, rules)
+	return textproc.ReplaceAll(in, out, rules)
 }
 
 func init() {

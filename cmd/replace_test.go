@@ -9,26 +9,27 @@ import (
 )
 
 // Helper function to execute the replace command in isolatedly
-func executeReplaceCmd(args ...string) (string, error) {
-	buf := new(bytes.Buffer)
+func executeReplaceCmd(args ...string) (string, string, error) {
+	stdoutBuf := new(bytes.Buffer)
+	stderrBuf := new(bytes.Buffer)
 	cmd := newReplaceCmd()
 
-	cmd.SetOut(buf)
-	cmd.SetErr(buf)
+	cmd.SetOut(stdoutBuf)
+	cmd.SetErr(stderrBuf)
 	cmd.SetArgs(args)
 
 	err := cmd.Execute()
-	return buf.String(), err
+	return stdoutBuf.String(), stderrBuf.String(), err
 }
 
 func TestReplaceCmd_MissingRequiredFlags(t *testing.T) {
 	// Test missing required flags (--file or --target)
-	_, err := executeReplaceCmd("-f", "input.txt")
+	_, _, err := executeReplaceCmd("-f", "input.txt")
 	if err == nil {
 		t.Errorf("Expected error for missing required flag --target, got nil")
 	}
 
-	_, err = executeReplaceCmd("-t", "hello")
+	_, _, err = executeReplaceCmd("-t", "hello")
 	if err == nil {
 		t.Errorf("Expected error for missing required flag --file, got nil")
 	}
@@ -44,7 +45,7 @@ func TestReplaceCmd_Stdout(t *testing.T) {
 	}
 
 	// Test replacing text and outputting to stdout (captured by buf)
-	out, err := executeReplaceCmd("-f", inputFile, "-t", "Hello", "-r", "Hi")
+	out, _, err := executeReplaceCmd("-f", inputFile, "-t", "Hello", "-r", "Hi")
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -67,7 +68,7 @@ func TestReplaceCmd_OutFlag(t *testing.T) {
 	}
 
 	// Test replacing text with --out (-o) flag
-	out, err := executeReplaceCmd("-f", inputFile, "-t", "apple", "-r", "orange", "-o", outputFile)
+	out, _, err := executeReplaceCmd("-f", inputFile, "-t", "apple", "-r", "orange", "-o", outputFile)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -98,7 +99,7 @@ func TestReplaceCmd_IgnoreCaseFlag(t *testing.T) {
 	}
 
 	// Test case-insensitive flag (-i)
-	out, err := executeReplaceCmd("-f", inputFile, "-t", "go", "-r", "Rust", "-i")
+	out, _, err := executeReplaceCmd("-f", inputFile, "-t", "go", "-r", "Rust", "-i")
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -116,7 +117,7 @@ func TestReplaceCmd_ChunkSizeFlag(t *testing.T) {
 		t.Fatalf("Failed to create temp file: %v", err)
 	}
 
-	out, err := executeReplaceCmd("-f", inputFile, "-t", "hello", "-r", "hi", "--chunk-size", "10")
+	out, _, err := executeReplaceCmd("-f", inputFile, "-t", "hello", "-r", "hi", "--chunk-size", "10")
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -133,7 +134,7 @@ func TestReplaceCmd_SameInputAndOutputFileError(t *testing.T) {
 	_ = os.WriteFile(inputFile, []byte("test"), 0o644)
 
 	// Test passing the same path to --file and --out
-	_, err := executeReplaceCmd("-f", inputFile, "-t", "test", "-r", "pass", "-o", inputFile)
+	_, _, err := executeReplaceCmd("-f", inputFile, "-t", "test", "-r", "pass", "-o", inputFile)
 	if err == nil {
 		t.Errorf("Expected error when output path equals input path, got nil")
 	}
@@ -173,7 +174,7 @@ func TestReplaceCmd_PreservesLineEndingsAndFinalNewline_WithOutFlag(t *testing.T
 				t.Fatalf("Failed to create temp input file: %v", err)
 			}
 
-			_, err := executeReplaceCmd("-f", inputFile, "-t", tt.target, "-r", tt.repl, "-o", outputFile)
+			_, _, err := executeReplaceCmd("-f", inputFile, "-t", tt.target, "-r", tt.repl, "-o", outputFile)
 			if err != nil {
 				t.Fatalf("Unexpected error: %v", err)
 			}
@@ -198,7 +199,7 @@ func TestReplaceCmd_EmptyTargetString(t *testing.T) {
 	}
 
 	// Test passing an explicitly empty string to --target
-	_, err := executeReplaceCmd("-f", inputFile, "-t", "", "-r", "x")
+	_, _, err := executeReplaceCmd("-f", inputFile, "-t", "", "-r", "x")
 
 	// If the condition slips through (e.g., using `if o.target != ""`),
 	// loadRules will fall back to returning this specific error.
