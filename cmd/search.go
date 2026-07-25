@@ -1,9 +1,7 @@
 package cmd
 
 import (
-	"bytes"
 	"fmt"
-	"io"
 	"os"
 
 	"text-swap/internal/config"
@@ -17,7 +15,10 @@ type searchOptions struct {
 	searchTarget string
 	configPath   string
 	ignoreCase   bool
+	chunkSize    int
 }
+
+const parallelSearchThresholdBytes = 4 * 1024 * 1024
 
 func newSearchCmd() *cobra.Command {
 	opts := &searchOptions{}
@@ -42,6 +43,8 @@ func newSearchCmd() *cobra.Command {
 	cmd.Flags().BoolVarP(&opts.ignoreCase, "ignore-case", "i", false, "Case-insensitive search")
 	cmd.MarkFlagsMutuallyExclusive("config", "ignore-case")
 
+	cmd.Flags().IntVar(&opts.chunkSize, "chunk-size", 0, "Chunk size in bytes for line-boundary parallel search (0 = auto by file size)")
+
 	return cmd
 }
 
@@ -54,25 +57,18 @@ func (o *searchOptions) run(cmd *cobra.Command) error {
 		_ = file.Close()
 	}()
 
-	// Load file content entirely into memory.
-	// Note: Be cautious of OOM when handling extremely large files.
-	input, err := io.ReadAll(file)
-	if err != nil {
-		return fmt.Errorf("cannot read input file: %w", err)
-	}
-
 	if cmd.Flags().Changed("config") {
 		if o.configPath == "" {
 			return fmt.Errorf("--config was provided but is empty")
 		}
-		return o.runWithConfig(cmd, input)
+		return o.runWithConfig(cmd)
 	}
 
-	return o.runSingleTarget(cmd, input)
+	return o.runSingleTarget(cmd, file)
 }
 
 // runWithConfig handles the search process when a config file is provided.
-func (o *searchOptions) runWithConfig(cmd *cobra.Command, input []byte) error {
+func (o *searchOptions) runWithConfig(cmd *cobra.Command) error {
 	data, err := os.ReadFile(o.configPath)
 	if err != nil {
 		return fmt.Errorf("failed to read config file: %w", err)
@@ -84,8 +80,14 @@ func (o *searchOptions) runWithConfig(cmd *cobra.Command, input []byte) error {
 	}
 
 	for _, rule := range rules {
+		inFile, err := os.Open(o.filePath)
+		if err != nil {
+			return fmt.Errorf("cannot open file: %w", err)
+		}
+
 		opts := textproc.SearchOptions{IgnoreCase: rule.IgnoreCase}
-		count, err := textproc.CountOccurrences(bytes.NewReader(input), rule.Target, opts)
+		count, err := o.countOccurrences(inFile, rule.Target, opts)
+		_ = inFile.Close()
 		if err != nil {
 			return fmt.Errorf("error occurred while searching for [%s]: %w", rule.Target, err)
 		}
@@ -99,12 +101,12 @@ func (o *searchOptions) runWithConfig(cmd *cobra.Command, input []byte) error {
 }
 
 // runSingleTarget handles the search process for a single target string.
-func (o *searchOptions) runSingleTarget(cmd *cobra.Command, input []byte) error {
+func (o *searchOptions) runSingleTarget(cmd *cobra.Command, file *os.File) error {
 	opts := textproc.SearchOptions{
 		IgnoreCase: o.ignoreCase,
 	}
 
-	count, err := textproc.CountOccurrences(bytes.NewReader(input), o.searchTarget, opts)
+	count, err := o.countOccurrences(file, o.searchTarget, opts)
 	if err != nil {
 		return fmt.Errorf("error occurred while searching: %w", err)
 	}
@@ -113,6 +115,36 @@ func (o *searchOptions) runSingleTarget(cmd *cobra.Command, input []byte) error 
 	cmd.Printf("Count of [%s]: %d\n", o.searchTarget, count)
 
 	return nil
+}
+
+func (o *searchOptions) countOccurrences(file *os.File, target string, opts textproc.SearchOptions) (int, error) {
+	if _, err := file.Seek(0, 0); err != nil {
+		return 0, fmt.Errorf("cannot seek input file: %w", err)
+	}
+
+	chunkSize := o.effectiveChunkSize(file)
+	if chunkSize > 0 {
+		return textproc.CountOccurrencesChunked(file, target, opts, chunkSize)
+	}
+
+	return textproc.CountOccurrences(file, target, opts)
+}
+
+func (o *searchOptions) effectiveChunkSize(file *os.File) int {
+	if o.chunkSize > 0 {
+		return o.chunkSize
+	}
+
+	info, err := file.Stat()
+	if err != nil {
+		return 0
+	}
+
+	if info.Size() > parallelSearchThresholdBytes {
+		return 64 * 1024
+	}
+
+	return 0
 }
 
 func init() {
