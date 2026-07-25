@@ -18,8 +18,6 @@ type searchOptions struct {
 	chunkSize    int
 }
 
-const parallelSearchThresholdBytes = 4 * 1024 * 1024
-
 func newSearchCmd() *cobra.Command {
 	opts := &searchOptions{}
 
@@ -131,20 +129,7 @@ func (o *searchOptions) countOccurrences(file *os.File, target string, opts text
 }
 
 func (o *searchOptions) effectiveChunkSize(file *os.File) int {
-	if o.chunkSize > 0 {
-		return o.chunkSize
-	}
-
-	info, err := file.Stat()
-	if err != nil {
-		return 0
-	}
-
-	if info.Size() > parallelSearchThresholdBytes {
-		return 64 * 1024
-	}
-
-	return 0
+	return resolveChunkSize(file, o.chunkSize)
 }
 
 func init() {
