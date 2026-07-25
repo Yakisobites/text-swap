@@ -30,7 +30,10 @@ func newFileProgressReader(cmd *cobra.Command, file *os.File, description string
 		progressbar.OptionShowBytes(true),
 		progressbar.OptionShowCount(),
 		progressbar.OptionSetRenderBlankState(true),
-		progressbar.OptionClearOnFinish(),
+		progressbar.OptionThrottle(0),
+		progressbar.OptionOnCompletion(func() {
+			_, _ = fmt.Fprintln(cmd.ErrOrStderr())
+		}),
 	)
 
 	reader := io.TeeReader(file, bar)
