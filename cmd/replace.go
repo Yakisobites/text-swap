@@ -9,6 +9,7 @@ import (
 
 	"text-swap/internal/chunk"
 	"text-swap/internal/config"
+	"text-swap/internal/progress"
 	"text-swap/internal/textproc"
 )
 
@@ -63,7 +64,7 @@ func (o *replaceOptions) run(cmd *cobra.Command) error {
 		_ = inFile.Close()
 	}()
 
-	reader, finishProgress, err := newFileProgressReader(cmd, inFile, "replace")
+	reader, finishProgress, err := progress.NewFileProgressReader(cmd.ErrOrStderr(), inFile, "replace")
 	if err != nil {
 		return err
 	}

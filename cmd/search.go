@@ -7,6 +7,7 @@ import (
 
 	"text-swap/internal/chunk"
 	"text-swap/internal/config"
+	"text-swap/internal/progress"
 	"text-swap/internal/textproc"
 
 	"github.com/spf13/cobra"
@@ -85,7 +86,7 @@ func (o *searchOptions) runWithConfig(cmd *cobra.Command) error {
 			return fmt.Errorf("cannot open file: %w", err)
 		}
 
-		reader, finishProgress, err := newFileProgressReader(cmd, inFile, fmt.Sprintf("search [%s]", rule.Target))
+		reader, finishProgress, err := progress.NewFileProgressReader(cmd.ErrOrStderr(), inFile, fmt.Sprintf("search [%s]", rule.Target))
 		if err != nil {
 			_ = inFile.Close()
 			return err
@@ -115,7 +116,7 @@ func (o *searchOptions) runSingleTarget(cmd *cobra.Command, file *os.File) error
 		IgnoreCase: o.ignoreCase,
 	}
 
-	reader, finishProgress, err := newFileProgressReader(cmd, file, fmt.Sprintf("search [%s]", o.searchTarget))
+	reader, finishProgress, err := progress.NewFileProgressReader(cmd.ErrOrStderr(), file, fmt.Sprintf("search [%s]", o.searchTarget))
 	if err != nil {
 		return err
 	}

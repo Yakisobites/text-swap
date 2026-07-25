@@ -1,4 +1,4 @@
-package cmd
+package progress
 
 import (
 	"fmt"
@@ -6,12 +6,11 @@ import (
 	"os"
 
 	"github.com/schollz/progressbar/v3"
-	"github.com/spf13/cobra"
 )
 
-type progressFinishFunc func() error
+type FinishFunc func() error
 
-func newFileProgressReader(cmd *cobra.Command, file *os.File, description string) (io.Reader, progressFinishFunc, error) {
+func NewFileProgressReader(w io.Writer, file *os.File, description string) (io.Reader, FinishFunc, error) {
 	info, err := file.Stat()
 	if err != nil {
 		return nil, nil, fmt.Errorf("cannot stat input file: %w", err)
@@ -24,7 +23,7 @@ func newFileProgressReader(cmd *cobra.Command, file *os.File, description string
 
 	bar := progressbar.NewOptions64(
 		total,
-		progressbar.OptionSetWriter(cmd.ErrOrStderr()),
+		progressbar.OptionSetWriter(w),
 		progressbar.OptionSetDescription(description),
 		progressbar.OptionSetWidth(24),
 		progressbar.OptionShowBytes(true),
@@ -32,7 +31,7 @@ func newFileProgressReader(cmd *cobra.Command, file *os.File, description string
 		progressbar.OptionSetRenderBlankState(true),
 		progressbar.OptionThrottle(0),
 		progressbar.OptionOnCompletion(func() {
-			_, _ = fmt.Fprintln(cmd.ErrOrStderr())
+			_, _ = fmt.Fprintln(w)
 		}),
 	)
 
