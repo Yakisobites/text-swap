@@ -35,3 +35,5 @@ Desktop.ini
 # 秘密情報（APIキーなど）が含まれる環境変数ファイル
 .env
 .env.*
+# Added by goreleaser init:
+dist/
