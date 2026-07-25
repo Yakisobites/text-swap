@@ -116,20 +116,16 @@ func (o *searchOptions) runSingleTarget(cmd *cobra.Command, file *os.File) error
 }
 
 func (o *searchOptions) countOccurrences(file *os.File, target string, opts textproc.SearchOptions) (int, error) {
-	if _, err := file.Seek(0, 0); err != nil {
+	chunkSize, err := prepareChunkSize(file, o.chunkSize)
+	if err != nil {
 		return 0, fmt.Errorf("cannot seek input file: %w", err)
 	}
 
-	chunkSize := o.effectiveChunkSize(file)
 	if chunkSize > 0 {
 		return textproc.CountOccurrencesChunked(file, target, opts, chunkSize)
 	}
 
 	return textproc.CountOccurrences(file, target, opts)
-}
-
-func (o *searchOptions) effectiveChunkSize(file *os.File) int {
-	return resolveChunkSize(file, o.chunkSize)
 }
 
 func init() {

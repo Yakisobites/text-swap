@@ -23,3 +23,11 @@ func resolveChunkSize(file *os.File, requested int) int {
 
 	return 0
 }
+
+func prepareChunkSize(file *os.File, requested int) (int, error) {
+	if _, err := file.Seek(0, 0); err != nil {
+		return 0, err
+	}
+
+	return resolveChunkSize(file, requested), nil
+}

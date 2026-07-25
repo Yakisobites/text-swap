@@ -146,20 +146,16 @@ func (o *replaceOptions) setupOutput(cmd *cobra.Command) (io.Writer, func() erro
 }
 
 func (o *replaceOptions) replaceAll(inFile *os.File, out io.Writer, rules []config.Rule) (int, error) {
-	if _, err := inFile.Seek(0, 0); err != nil {
+	chunkSize, err := prepareChunkSize(inFile, o.chunkSize)
+	if err != nil {
 		return 0, fmt.Errorf("cannot seek input file: %w", err)
 	}
 
-	chunkSize := o.effectiveChunkSize(inFile)
 	if chunkSize > 0 {
 		return textproc.ReplaceAllChunked(inFile, out, rules, chunkSize)
 	}
 
 	return textproc.ReplaceAll(inFile, out, rules)
-}
-
-func (o *replaceOptions) effectiveChunkSize(file *os.File) int {
-	return resolveChunkSize(file, o.chunkSize)
 }
 
 func init() {
