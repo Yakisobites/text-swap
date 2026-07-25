@@ -1,18 +1,18 @@
 {
     "editor.formatOnSave": true,
-    // フォーマットツールをデフォルト（gopls）に戻す
+    // Reset format tool to default (gopls)
     "go.formatTool": "default",
-    // gopls 組み込みの gofumpt を有効化
+    // Enable gofumpt formatting in gopls
     "gopls": {
         "formatting.gofumpt": true
     },
-    // 保存時に import を自動整理
+    // Organize imports automatically on save
     "[go]": {
         "editor.codeActionsOnSave": {
             "source.organizeImports": "always"
         }
     },
-    // --- 2. golangci-lint の保存時自動実行 ---
+    // Run golangci-lint automatically on save
     "go.lintTool": "golangci-lint",
     "go.lintOnSave": "package",
     "go.lintFlags": [

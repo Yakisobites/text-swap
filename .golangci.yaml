@@ -5,12 +5,12 @@ run:
 
 linters:
   enable:
-    - errcheck     # エラー無視のチェック
-    - govet        # Go標準の静的解析
-    - ineffassign  # 無駄な代入のチェック
-    - staticcheck  # 高度な静的解析（バグの元を検知）
-    - unused       # 未使用コードのチェック
+    - errcheck     # Checks for unchecked errors
+    - govet        # Examines Go source code and reports suspicious constructs
+    - ineffassign  # Detects ineffectual assignments
+    - staticcheck  # Applies static analysis checks to catch bugs and performance issues
+    - unused       # Checks Go code for unused constants, variables, functions and types
 
 formatters:
   enable:
-    - goimports      # インポートの整形
+    - goimports      # Fixes imports and formats code in the goimports style
