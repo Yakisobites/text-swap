@@ -52,6 +52,12 @@ func TestSearchCmd(t *testing.T) {
 			wantErr:      false,
 		},
 		{
+			name:         "Normal case: Chunked search via --chunk-size",
+			args:         []string{"search", "-f", testFile, "-t", "hello", "--chunk-size", "10"},
+			wantCountStr: "Count of [hello]: 1",
+			wantErr:      false,
+		},
+		{
 			name:        "Error case: Nonexistent file path",
 			args:        []string{"search", "-f", filepath.Join(tmpDir, "not_exist.txt"), "-t", "hello"},
 			wantErr:     true,

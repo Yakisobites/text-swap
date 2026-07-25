@@ -143,3 +143,101 @@ func TestReplaceAll_PreservesLineEndingsAndFinalNewline(t *testing.T) {
 		})
 	}
 }
+
+func TestReplaceAllChunked(t *testing.T) {
+	tests := []struct {
+		name       string
+		input      string
+		rules      []config.Rule
+		chunkSize  int
+		wantOutput string
+		wantCount  int
+		wantErr    bool
+	}{
+		{
+			name:       "Chunked replace with small chunk size",
+			input:      "hello one\nhello two\nhello three\n",
+			rules:      []config.Rule{{Target: "hello", Replacement: "hi", IgnoreCase: false}},
+			chunkSize:  10,
+			wantOutput: "hi one\nhi two\nhi three\n",
+			wantCount:  3,
+			wantErr:    false,
+		},
+		{
+			name:       "Chunked replace ignore-case",
+			input:      "Hello\nhello\nHELLO\n",
+			rules:      []config.Rule{{Target: "hello", Replacement: "$1", IgnoreCase: true}},
+			chunkSize:  8,
+			wantOutput: "$1\n$1\n$1\n",
+			wantCount:  3,
+			wantErr:    false,
+		},
+		{
+			name:       "Chunked replace without trailing newline",
+			input:      "foo\nbar",
+			rules:      []config.Rule{{Target: "bar", Replacement: "baz", IgnoreCase: false}},
+			chunkSize:  6,
+			wantOutput: "foo\nbaz",
+			wantCount:  1,
+			wantErr:    false,
+		},
+		{
+			name:       "Invalid chunk size",
+			input:      "foo",
+			rules:      []config.Rule{{Target: "foo", Replacement: "bar", IgnoreCase: false}},
+			chunkSize:  0,
+			wantOutput: "",
+			wantCount:  0,
+			wantErr:    true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := strings.NewReader(tt.input)
+			outBuf := new(bytes.Buffer)
+
+			gotCount, err := ReplaceAllChunked(r, outBuf, tt.rules, tt.chunkSize)
+
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("ReplaceAllChunked() error = %v, wantErr %v", err, tt.wantErr)
+			}
+
+			if gotCount != tt.wantCount {
+				t.Errorf("ReplaceAllChunked() count = %v, want %v", gotCount, tt.wantCount)
+			}
+
+			if gotOutput := outBuf.String(); gotOutput != tt.wantOutput {
+				t.Errorf("ReplaceAllChunked() output = %q, want %q", gotOutput, tt.wantOutput)
+			}
+		})
+	}
+}
+
+func TestReplaceAllChunked_ParityWithSequential(t *testing.T) {
+	input := "cat dog\nCAT dog\ncat DOG\n"
+	rules := []config.Rule{
+		{Target: "cat", Replacement: "dog", IgnoreCase: true},
+		{Target: "dog", Replacement: "fox", IgnoreCase: false},
+	}
+
+	seqOut := new(bytes.Buffer)
+	seqCount, seqErr := ReplaceAll(strings.NewReader(input), seqOut, rules)
+	if seqErr != nil {
+		t.Fatalf("ReplaceAll() error = %v", seqErr)
+	}
+
+	chunkOut := new(bytes.Buffer)
+	chunkCount, chunkErr := ReplaceAllChunked(strings.NewReader(input), chunkOut, rules, 9)
+	if chunkErr != nil {
+		t.Fatalf("ReplaceAllChunked() error = %v", chunkErr)
+	}
+
+	if seqCount != chunkCount {
+		t.Errorf("sequential count %d != chunked count %d", seqCount, chunkCount)
+	}
+
+	if seqOut.String() != chunkOut.String() {
+		t.Errorf("sequential output %q != chunked output %q", seqOut.String(), chunkOut.String())
+	}
+}

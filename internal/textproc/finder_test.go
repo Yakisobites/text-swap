@@ -76,3 +76,87 @@ func TestCountOccurrences(t *testing.T) {
 		})
 	}
 }
+
+func TestCountOccurrencesChunked(t *testing.T) {
+	tests := []struct {
+		name      string
+		input     string
+		target    string
+		opts      SearchOptions
+		chunkSize int
+		wantCount int
+		wantErr   bool
+	}{
+		{
+			name:      "Line boundary chunk split",
+			input:     "hello one\nhello two\nhello three\n",
+			target:    "hello",
+			opts:      SearchOptions{IgnoreCase: false},
+			chunkSize: 12,
+			wantCount: 3,
+			wantErr:   false,
+		},
+		{
+			name:      "Case-insensitive chunked search",
+			input:     "Hello\nhello\nHELLO\n",
+			target:    "hello",
+			opts:      SearchOptions{IgnoreCase: true},
+			chunkSize: 8,
+			wantCount: 3,
+			wantErr:   false,
+		},
+		{
+			name:      "Last line without trailing newline",
+			input:     "alpha\nalpha",
+			target:    "alpha",
+			opts:      SearchOptions{IgnoreCase: false},
+			chunkSize: 6,
+			wantCount: 2,
+			wantErr:   false,
+		},
+		{
+			name:      "Invalid chunk size",
+			input:     "hello",
+			target:    "hello",
+			opts:      SearchOptions{IgnoreCase: false},
+			chunkSize: 0,
+			wantCount: 0,
+			wantErr:   true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := strings.NewReader(tt.input)
+			got, err := CountOccurrencesChunked(r, tt.target, tt.opts, tt.chunkSize)
+
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("CountOccurrencesChunked() error = %v, wantErr %v", err, tt.wantErr)
+			}
+
+			if got != tt.wantCount {
+				t.Errorf("CountOccurrencesChunked() = %v, want %v", got, tt.wantCount)
+			}
+		})
+	}
+}
+
+func TestCountOccurrencesChunked_ParityWithSequential(t *testing.T) {
+	input := "Hello hello\nHELLO\nhello world hello\n"
+	target := "hello"
+	opts := SearchOptions{IgnoreCase: true}
+
+	sequential, err := CountOccurrences(strings.NewReader(input), target, opts)
+	if err != nil {
+		t.Fatalf("CountOccurrences() error = %v", err)
+	}
+
+	chunked, err := CountOccurrencesChunked(strings.NewReader(input), target, opts, 9)
+	if err != nil {
+		t.Fatalf("CountOccurrencesChunked() error = %v", err)
+	}
+
+	if sequential != chunked {
+		t.Errorf("sequential count %d != chunked count %d", sequential, chunked)
+	}
+}
