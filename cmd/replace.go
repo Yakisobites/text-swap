@@ -18,7 +18,10 @@ type replaceOptions struct {
 	configPath  string
 	replacement string
 	ignoreCase  bool
+	chunkSize   int
 }
+
+const parallelReplaceThresholdBytes = 4 * 1024 * 1024
 
 func newReplaceCmd() *cobra.Command {
 	opts := &replaceOptions{}
@@ -39,6 +42,7 @@ func newReplaceCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&opts.replacement, "replacement", "r", "", "A new word to replace with")
 	cmd.Flags().StringVarP(&opts.outPath, "out", "o", "", "A file path to write output (default: stdout)")
 	cmd.Flags().BoolVarP(&opts.ignoreCase, "ignore-case", "i", false, "Case-insensitive replacement")
+	cmd.Flags().IntVar(&opts.chunkSize, "chunk-size", 0, "Chunk size in bytes for line-boundary parallel replace (0 = auto by file size)")
 
 	// Ensure that either --target or --config is provided, but not both
 	cmd.MarkFlagsOneRequired("target", "config")
@@ -73,7 +77,7 @@ func (o *replaceOptions) run(cmd *cobra.Command) error {
 		_ = closeFn()
 	}()
 
-	totalCount, err := textproc.ReplaceAll(inFile, outFile, rules)
+	totalCount, err := o.replaceAll(inFile, outFile, rules)
 	if err != nil {
 		return fmt.Errorf("error occurred while replacing: %w", err)
 	}
@@ -141,6 +145,36 @@ func (o *replaceOptions) setupOutput(cmd *cobra.Command) (io.Writer, func() erro
 	}
 
 	return f, f.Close, nil
+}
+
+func (o *replaceOptions) replaceAll(inFile *os.File, out io.Writer, rules []config.Rule) (int, error) {
+	if _, err := inFile.Seek(0, 0); err != nil {
+		return 0, fmt.Errorf("cannot seek input file: %w", err)
+	}
+
+	chunkSize := o.effectiveChunkSize(inFile)
+	if chunkSize > 0 {
+		return textproc.ReplaceAllChunked(inFile, out, rules, chunkSize)
+	}
+
+	return textproc.ReplaceAll(inFile, out, rules)
+}
+
+func (o *replaceOptions) effectiveChunkSize(file *os.File) int {
+	if o.chunkSize > 0 {
+		return o.chunkSize
+	}
+
+	info, err := file.Stat()
+	if err != nil {
+		return 0
+	}
+
+	if info.Size() > parallelReplaceThresholdBytes {
+		return 64 * 1024
+	}
+
+	return 0
 }
 
 func init() {

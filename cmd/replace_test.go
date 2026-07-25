@@ -109,6 +109,24 @@ func TestReplaceCmd_IgnoreCaseFlag(t *testing.T) {
 	}
 }
 
+func TestReplaceCmd_ChunkSizeFlag(t *testing.T) {
+	tmpDir := t.TempDir()
+	inputFile := filepath.Join(tmpDir, "input.txt")
+	if err := os.WriteFile(inputFile, []byte("hello one\nhello two\nhello three\n"), 0o644); err != nil {
+		t.Fatalf("Failed to create temp file: %v", err)
+	}
+
+	out, err := executeReplaceCmd("-f", inputFile, "-t", "hello", "-r", "hi", "--chunk-size", "10")
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	expected := "hi one\nhi two\nhi three\n"
+	if out != expected {
+		t.Errorf("Expected stdout %q, got %q", expected, out)
+	}
+}
+
 func TestReplaceCmd_SameInputAndOutputFileError(t *testing.T) {
 	tmpDir := t.TempDir()
 	inputFile := filepath.Join(tmpDir, "input.txt")
