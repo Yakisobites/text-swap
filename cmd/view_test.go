@@ -27,7 +27,7 @@ func executeViewCmd(args ...string) (string, string, error) {
 }
 
 func TestViewCmd_ReadFileError(t *testing.T) {
-	_, _, err := executeViewCmd("missing.txt")
+	_, _, err := executeViewCmd("-f", "missing.txt")
 	if err == nil {
 		t.Fatal("expected read file error, got nil")
 	}
@@ -43,7 +43,7 @@ func TestViewOptions_Run_SearchMode(t *testing.T) {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
-	opts := &viewOptions{searchTerm: "he"}
+	opts := &viewOptions{filePath: testFile, searchTerm: "he"}
 	called := false
 	opts.runProgram = func(m tea.Model, _ ...tea.ProgramOption) error {
 		called = true
@@ -58,7 +58,7 @@ func TestViewOptions_Run_SearchMode(t *testing.T) {
 	}
 
 	cmd := newViewCmd()
-	if err := opts.run(cmd, []string{testFile}); err != nil {
+	if err := opts.run(cmd); err != nil {
 		t.Fatalf("run returned error: %v", err)
 	}
 	if !called {
@@ -73,7 +73,7 @@ func TestViewOptions_Run_DiffMode(t *testing.T) {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
-	opts := &viewOptions{searchTerm: "he", replaceTerm: "HE"}
+	opts := &viewOptions{filePath: testFile, searchTerm: "he", replaceTerm: "HE"}
 	opts.runProgram = func(m tea.Model, _ ...tea.ProgramOption) error {
 		vm := m.(internalview.Model)
 		if vm.GetMode() != internalview.ModeDiff {
@@ -83,7 +83,7 @@ func TestViewOptions_Run_DiffMode(t *testing.T) {
 	}
 
 	cmd := newViewCmd()
-	if err := opts.run(cmd, []string{testFile}); err != nil {
+	if err := opts.run(cmd); err != nil {
 		t.Fatalf("run returned error: %v", err)
 	}
 }
@@ -95,13 +95,13 @@ func TestViewOptions_Run_ProgramError(t *testing.T) {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
-	opts := &viewOptions{}
+	opts := &viewOptions{filePath: testFile}
 	opts.runProgram = func(_ tea.Model, _ ...tea.ProgramOption) error {
 		return fmt.Errorf("boom")
 	}
 
 	cmd := newViewCmd()
-	err := opts.run(cmd, []string{testFile})
+	err := opts.run(cmd)
 	if err == nil {
 		t.Fatal("expected program error, got nil")
 	}
@@ -127,7 +127,7 @@ func TestViewOptions_Run_ConfigSearchMode(t *testing.T) {
 		t.Fatalf("failed to create config file: %v", err)
 	}
 
-	opts := &viewOptions{configPath: configFile}
+	opts := &viewOptions{filePath: testFile, configPath: configFile}
 	opts.runProgram = func(m tea.Model, _ ...tea.ProgramOption) error {
 		vm := m.(internalview.Model)
 		if vm.GetMode() != internalview.ModeSearch {
@@ -141,7 +141,7 @@ func TestViewOptions_Run_ConfigSearchMode(t *testing.T) {
 	}
 
 	cmd := newViewCmd()
-	if err := opts.run(cmd, []string{testFile}); err != nil {
+	if err := opts.run(cmd); err != nil {
 		t.Fatalf("run returned error: %v", err)
 	}
 }
@@ -161,7 +161,7 @@ func TestViewOptions_Run_ConfigDiffMode(t *testing.T) {
 		t.Fatalf("failed to create config file: %v", err)
 	}
 
-	opts := &viewOptions{configPath: configFile}
+	opts := &viewOptions{filePath: testFile, configPath: configFile}
 	opts.runProgram = func(m tea.Model, _ ...tea.ProgramOption) error {
 		vm := m.(internalview.Model)
 		if vm.GetMode() != internalview.ModeDiff {
@@ -175,7 +175,7 @@ func TestViewOptions_Run_ConfigDiffMode(t *testing.T) {
 	}
 
 	cmd := newViewCmd()
-	if err := opts.run(cmd, []string{testFile}); err != nil {
+	if err := opts.run(cmd); err != nil {
 		t.Fatalf("run returned error: %v", err)
 	}
 }
@@ -187,9 +187,9 @@ func TestViewOptions_Run_ConfigError(t *testing.T) {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
-	opts := &viewOptions{configPath: filepath.Join(tmpDir, "missing.yaml")}
+	opts := &viewOptions{filePath: testFile, configPath: filepath.Join(tmpDir, "missing.yaml")}
 	cmd := newViewCmd()
-	err := opts.run(cmd, []string{testFile})
+	err := opts.run(cmd)
 	if err == nil {
 		t.Fatal("expected config read error, got nil")
 	}

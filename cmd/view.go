@@ -12,6 +12,7 @@ import (
 )
 
 type viewOptions struct {
+	filePath    string
 	searchTerm  string
 	replaceTerm string
 	configPath  string
@@ -23,13 +24,15 @@ func newViewCmd() *cobra.Command {
 	opts.runProgram = defaultViewProgramRunner
 
 	cmd := &cobra.Command{
-		Use:   "view <file>",
+		Use:   "view",
 		Short: "Interactive file viewer with search highlighting and side-by-side diff",
-		Args:  cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return opts.run(cmd, args)
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return opts.run(cmd)
 		},
 	}
+
+	cmd.Flags().StringVarP(&opts.filePath, "file", "f", "", "A file path to read")
+	_ = cmd.MarkFlagRequired("file")
 
 	cmd.Flags().StringVarP(&opts.searchTerm, "search", "s", "", "Search term for highlight mode")
 	cmd.Flags().StringVarP(&opts.replaceTerm, "replace", "r", "", "Replacement term for diff mode")
@@ -41,9 +44,8 @@ func newViewCmd() *cobra.Command {
 	return cmd
 }
 
-func (o *viewOptions) run(_ *cobra.Command, args []string) error {
-	filePath := args[0]
-	contentBytes, err := os.ReadFile(filePath)
+func (o *viewOptions) run(_ *cobra.Command) error {
+	contentBytes, err := os.ReadFile(o.filePath)
 	if err != nil {
 		return fmt.Errorf("failed to read file: %w", err)
 	}
@@ -55,7 +57,7 @@ func (o *viewOptions) run(_ *cobra.Command, args []string) error {
 
 	mode := o.detectMode(rules)
 
-	m := internalview.NewModelWithRules(mode, filePath, rules, string(contentBytes))
+	m := internalview.NewModelWithRules(mode, o.filePath, rules, string(contentBytes))
 	if err := o.runProgram(m, tea.WithAltScreen(), tea.WithMouseCellMotion()); err != nil {
 		return fmt.Errorf("execution error: %w", err)
 	}
