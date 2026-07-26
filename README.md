@@ -5,7 +5,7 @@
 [![Bubbles](https://img.shields.io/badge/Bubbles-v1.0.0-1A1A1A?logo=terminal&logoColor=white)](#)
 [![Lipgloss](https://img.shields.io/badge/Lipgloss-v1.1.0-FF5F87?logoColor=white)](#)
 
-![Text-Swap demo](assets\demo.gif)
+![assets\demo.gif](https://github.com/Yakisobites/text-swap/blob/main/assets/demo.gif)
 
 `text-swap` is a Go CLI tool for searching and replacing text in files.
 It supports both one-off operations and rule-based batch processing via YAML/JSON config files.
