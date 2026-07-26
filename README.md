@@ -9,6 +9,7 @@ Built with Cobra, it is designed for local automation, scripting, and release di
 
 - Search occurrences of a target string in a file
 - Replace text using a single rule (`--target` + `--replacement`) or multiple rules from config (`--config`)
+- View a file interactively with search highlighting or side-by-side diff
 - Optional case-insensitive matching (`--ignore-case`)
 - Parallel chunk processing for large files (`--chunk-size`, or auto mode)
 - Progress display for file processing
@@ -52,6 +53,7 @@ General help:
 text-swap --help
 text-swap search --help
 text-swap replace --help
+text-swap view --help
 ```
 
 ### `search` command
@@ -144,6 +146,35 @@ text-swap replace -f ./input.txt -c ./configs/sample.json -o ./output.txt
 
 # Chunked replacement
 text-swap replace -f ./large.txt -t "ERROR" -r "WARN" --chunk-size 65536 -o ./result.txt
+```
+
+### `view` command
+
+Open a file in an interactive terminal viewer.
+
+```bash
+text-swap view <file> [--search <term>] [--replace <term>]
+```
+
+Flags:
+
+- `<file>` (required): file path to open
+- `-s, --search`: search term for highlight mode
+- `-r, --replace`: replacement term for diff mode
+
+Notes:
+
+- If `--replace` is set, the viewer opens in diff mode
+- Otherwise, it opens in search highlight mode
+
+Examples:
+
+```bash
+# Highlight matches in a file
+text-swap view ./input.txt -s "hello"
+
+# Show a side-by-side diff view
+text-swap view ./input.txt -s "foo" -r "bar"
 ```
 
 ## Config File Format
