@@ -41,7 +41,7 @@ func newViewCmd() *cobra.Command {
 	return cmd
 }
 
-func (o *viewOptions) run(cmd *cobra.Command, args []string) error {
+func (o *viewOptions) run(_ *cobra.Command, args []string) error {
 	filePath := args[0]
 	contentBytes, err := os.ReadFile(filePath)
 	if err != nil {
