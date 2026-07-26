@@ -38,11 +38,10 @@ var (
 )
 
 type Model struct {
-	mode        Mode
-	filePath    string
-	searchTerm  string
-	replaceTerm string
-	rawContent  string
+	mode       Mode
+	filePath   string
+	rules      []Rule
+	rawContent string
 
 	vpLeft  viewport.Model
 	vpRight viewport.Model
@@ -54,17 +53,28 @@ type Model struct {
 }
 
 func NewModel(mode Mode, filePath, search, replace, content string) Model {
+	rules := []Rule{{
+		Target:      search,
+		Replacement: replace,
+	}}
+	return NewModelWithRules(mode, filePath, rules, content)
+}
+
+func NewModelWithRules(mode Mode, filePath string, rules []Rule, content string) Model {
 	return Model{
-		mode:        mode,
-		filePath:    filePath,
-		searchTerm:  search,
-		replaceTerm: replace,
-		rawContent:  content,
+		mode:       mode,
+		filePath:   filePath,
+		rules:      append([]Rule(nil), rules...),
+		rawContent: content,
 	}
 }
 
 func (m Model) GetMode() Mode {
 	return m.mode
+}
+
+func (m Model) GetRules() []Rule {
+	return append([]Rule(nil), m.rules...)
 }
 
 func (m Model) Init() tea.Cmd {
@@ -78,12 +88,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "q", "ctrl+c":
 			return m, tea.Quit
 		case "left", "h":
-			maxOffset := computeMaxXOffset(m.mode, m.rawContent, m.searchTerm, m.replaceTerm, m.vpLeft.Width)
+			maxOffset := computeMaxXOffset(m.mode, m.rawContent, m.rules, m.vpLeft.Width)
 			m.xOffset = computeNextXOffset(m.xOffset, -1, maxOffset)
 			m = m.refreshContent()
 			return m, nil
 		case "right", "l":
-			maxOffset := computeMaxXOffset(m.mode, m.rawContent, m.searchTerm, m.replaceTerm, m.vpLeft.Width)
+			maxOffset := computeMaxXOffset(m.mode, m.rawContent, m.rules, m.vpLeft.Width)
 			m.xOffset = computeNextXOffset(m.xOffset, 1, maxOffset)
 			m = m.refreshContent()
 			return m, nil
@@ -136,7 +146,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.vpRight.Height = paneHeight
 		}
 
-		maxOffset := computeMaxXOffset(m.mode, m.rawContent, m.searchTerm, m.replaceTerm, m.vpLeft.Width)
+		maxOffset := computeMaxXOffset(m.mode, m.rawContent, m.rules, m.vpLeft.Width)
 		m.xOffset = computeNextXOffset(m.xOffset, 0, maxOffset)
 		m = m.refreshContent()
 	}
@@ -145,22 +155,22 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) refreshContent() Model {
-	searchHighlight := func(target string) string {
-		return searchStyle.Render(target)
+	searchHighlight := func(ruleIndex int, target string) string {
+		return searchStyleFor(ruleIndex).Render(target)
 	}
-	replaceHighlight := func(target string) string {
-		return replaceStyle.Render(target)
+	replaceHighlight := func(ruleIndex int, target string) string {
+		return replaceStyleFor(ruleIndex).Render(target)
 	}
 
 	if m.mode == ModeSearch {
-		left := sliceAndHighlightContent(m.rawContent, m.searchTerm, m.xOffset, m.vpLeft.Width, searchHighlight)
+		left := sliceAndHighlightContent(m.rawContent, m.rules, m.xOffset, m.vpLeft.Width, searchHighlight)
 		m.vpLeft.SetContent(left)
 		return m
 	}
 
-	replaced := buildReplacedContent(m.rawContent, m.searchTerm, m.replaceTerm)
-	left := sliceAndHighlightContent(m.rawContent, m.searchTerm, m.xOffset, m.vpLeft.Width, searchHighlight)
-	right := sliceAndHighlightContent(replaced, m.replaceTerm, m.xOffset, m.vpRight.Width, replaceHighlight)
+	replaced := buildReplacedContent(m.rawContent, m.rules)
+	left := sliceAndHighlightContent(m.rawContent, m.rules, m.xOffset, m.vpLeft.Width, searchHighlight)
+	right := sliceAndHighlightContent(replaced, replacementHighlightRules(m.rules), m.xOffset, m.vpRight.Width, replaceHighlight)
 	m.vpLeft.SetContent(left)
 	m.vpRight.SetContent(right)
 	return m
@@ -172,14 +182,14 @@ func (m Model) View() string {
 	}
 
 	if m.mode == ModeSearch {
-		header := headerStyle.Width(m.width).Render(fmt.Sprintf("File: %s | Search: '%s'", m.filePath, m.searchTerm))
+		header := headerStyle.Width(m.width).Render(fmt.Sprintf("File: %s | Search: %s", m.filePath, searchSummary(m.rules)))
 		return lipgloss.JoinVertical(lipgloss.Left, header, m.vpLeft.View())
 	}
 
 	colWidth := m.width / 2
 	titleStyle := headerStyle.Width(colWidth).MaxHeight(1)
-	leftTitle := titleStyle.Render(fmt.Sprintf("Original: '%s'", m.searchTerm))
-	rightTitle := titleStyle.Render(fmt.Sprintf("Replaced: '%s'", m.replaceTerm))
+	leftTitle := titleStyle.Render(fmt.Sprintf("Original: %s", searchSummary(m.rules)))
+	rightTitle := titleStyle.Render(fmt.Sprintf("Replaced: %s", replaceSummary(m.rules)))
 
 	leftPane := paneBorder.Width(colWidth - 2).Render(m.vpLeft.View())
 	rightPane := paneBorder.Width(colWidth - 2).Render(m.vpRight.View())
@@ -188,4 +198,89 @@ func (m Model) View() string {
 	rightCol := lipgloss.JoinVertical(lipgloss.Left, rightTitle, rightPane)
 
 	return lipgloss.JoinHorizontal(lipgloss.Top, leftCol, rightCol)
+}
+
+var searchPalette = []lipgloss.Style{
+	searchStyle,
+	lipgloss.NewStyle().Foreground(lipgloss.Color("#1E1E2E")).Background(lipgloss.Color("#89DCEB")).Bold(true),
+	lipgloss.NewStyle().Foreground(lipgloss.Color("#1E1E2E")).Background(lipgloss.Color("#FAB387")).Bold(true),
+	lipgloss.NewStyle().Foreground(lipgloss.Color("#1E1E2E")).Background(lipgloss.Color("#CBA6F7")).Bold(true),
+	lipgloss.NewStyle().Foreground(lipgloss.Color("#1E1E2E")).Background(lipgloss.Color("#F38BA8")).Bold(true),
+}
+
+var replacePalette = []lipgloss.Style{
+	replaceStyle,
+	lipgloss.NewStyle().Foreground(lipgloss.Color("#1E1E2E")).Background(lipgloss.Color("#74C7EC")).Bold(true),
+	lipgloss.NewStyle().Foreground(lipgloss.Color("#1E1E2E")).Background(lipgloss.Color("#F5C2E7")).Bold(true),
+	lipgloss.NewStyle().Foreground(lipgloss.Color("#1E1E2E")).Background(lipgloss.Color("#F2CDCD")).Bold(true),
+	lipgloss.NewStyle().Foreground(lipgloss.Color("#1E1E2E")).Background(lipgloss.Color("#F9E2AF")).Bold(true),
+}
+
+func searchStyleFor(ruleIndex int) lipgloss.Style {
+	if ruleIndex < 0 {
+		return searchStyle
+	}
+	return searchPalette[ruleIndex%len(searchPalette)]
+}
+
+func replaceStyleFor(ruleIndex int) lipgloss.Style {
+	if ruleIndex < 0 {
+		return replaceStyle
+	}
+	return replacePalette[ruleIndex%len(replacePalette)]
+}
+
+func searchSummary(rules []Rule) string {
+	targets := make([]string, 0, len(rules))
+	for _, rule := range rules {
+		if rule.Target == "" {
+			continue
+		}
+		targets = append(targets, rule.Target)
+	}
+
+	if len(targets) == 0 {
+		return "(none)"
+	}
+
+	return "[" + joinWithComma(targets) + "]"
+}
+
+func replaceSummary(rules []Rule) string {
+	pairs := make([]string, 0, len(rules))
+	for _, rule := range rules {
+		if rule.Target == "" {
+			continue
+		}
+		pairs = append(pairs, fmt.Sprintf("%s->%s", rule.Target, rule.Replacement))
+	}
+
+	if len(pairs) == 0 {
+		return "(none)"
+	}
+
+	return "[" + joinWithComma(pairs) + "]"
+}
+
+func joinWithComma(values []string) string {
+	if len(values) == 0 {
+		return ""
+	}
+
+	joined := values[0]
+	for i := 1; i < len(values); i++ {
+		joined += ", " + values[i]
+	}
+	return joined
+}
+
+func replacementHighlightRules(rules []Rule) []Rule {
+	highlightRules := make([]Rule, 0, len(rules))
+	for _, rule := range rules {
+		if rule.Replacement == "" {
+			continue
+		}
+		highlightRules = append(highlightRules, Rule{Target: rule.Replacement})
+	}
+	return highlightRules
 }

@@ -109,3 +109,91 @@ func TestViewOptions_Run_ProgramError(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
+
+func TestViewOptions_Run_ConfigSearchMode(t *testing.T) {
+	tmpDir := t.TempDir()
+	testFile := filepath.Join(tmpDir, "sample.txt")
+	if err := os.WriteFile(testFile, []byte("hello world"), 0o644); err != nil {
+		t.Fatalf("failed to create test file: %v", err)
+	}
+
+	configFile := filepath.Join(tmpDir, "rules.yaml")
+	if err := os.WriteFile(configFile, []byte(`rules:
+  - target: "hello"
+    replacement: ""
+  - target: "world"
+    replacement: ""
+`), 0o644); err != nil {
+		t.Fatalf("failed to create config file: %v", err)
+	}
+
+	opts := &viewOptions{configPath: configFile}
+	opts.runProgram = func(m tea.Model, _ ...tea.ProgramOption) error {
+		vm := m.(internalview.Model)
+		if vm.GetMode() != internalview.ModeSearch {
+			t.Fatalf("mode = %v, want ModeSearch", vm.GetMode())
+		}
+		rules := vm.GetRules()
+		if len(rules) != 2 {
+			t.Fatalf("rules len = %d, want 2", len(rules))
+		}
+		return nil
+	}
+
+	cmd := newViewCmd()
+	if err := opts.run(cmd, []string{testFile}); err != nil {
+		t.Fatalf("run returned error: %v", err)
+	}
+}
+
+func TestViewOptions_Run_ConfigDiffMode(t *testing.T) {
+	tmpDir := t.TempDir()
+	testFile := filepath.Join(tmpDir, "sample.txt")
+	if err := os.WriteFile(testFile, []byte("hello world"), 0o644); err != nil {
+		t.Fatalf("failed to create test file: %v", err)
+	}
+
+	configFile := filepath.Join(tmpDir, "rules.json")
+	if err := os.WriteFile(configFile, []byte(`[
+  {"target":"hello","replacement":"HELLO"},
+  {"target":"world","replacement":"WORLD"}
+]`), 0o644); err != nil {
+		t.Fatalf("failed to create config file: %v", err)
+	}
+
+	opts := &viewOptions{configPath: configFile}
+	opts.runProgram = func(m tea.Model, _ ...tea.ProgramOption) error {
+		vm := m.(internalview.Model)
+		if vm.GetMode() != internalview.ModeDiff {
+			t.Fatalf("mode = %v, want ModeDiff", vm.GetMode())
+		}
+		rules := vm.GetRules()
+		if len(rules) != 2 {
+			t.Fatalf("rules len = %d, want 2", len(rules))
+		}
+		return nil
+	}
+
+	cmd := newViewCmd()
+	if err := opts.run(cmd, []string{testFile}); err != nil {
+		t.Fatalf("run returned error: %v", err)
+	}
+}
+
+func TestViewOptions_Run_ConfigError(t *testing.T) {
+	tmpDir := t.TempDir()
+	testFile := filepath.Join(tmpDir, "sample.txt")
+	if err := os.WriteFile(testFile, []byte("hello"), 0o644); err != nil {
+		t.Fatalf("failed to create test file: %v", err)
+	}
+
+	opts := &viewOptions{configPath: filepath.Join(tmpDir, "missing.yaml")}
+	cmd := newViewCmd()
+	err := opts.run(cmd, []string{testFile})
+	if err == nil {
+		t.Fatal("expected config read error, got nil")
+	}
+	if !strings.Contains(err.Error(), "failed to read config file") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}

@@ -57,3 +57,29 @@ func TestViewModel_WindowResizeSetsReadyAndDimensions(t *testing.T) {
 		t.Fatalf("right viewport dimensions are invalid: width=%d height=%d", next.vpRight.Width, next.vpRight.Height)
 	}
 }
+
+func TestNewModelWithRules_ClonesRules(t *testing.T) {
+	rules := []Rule{{Target: "foo", Replacement: "bar"}}
+	m := NewModelWithRules(ModeDiff, "sample.txt", rules, "foo")
+
+	rules[0].Target = "changed"
+	got := m.GetRules()
+	if len(got) != 1 || got[0].Target != "foo" {
+		t.Fatalf("rules were not cloned: %#v", got)
+	}
+}
+
+func TestSearchAndReplaceSummary(t *testing.T) {
+	rules := []Rule{
+		{Target: "foo", Replacement: "bar"},
+		{Target: "hello", Replacement: "world"},
+	}
+
+	if got := searchSummary(rules); got != "[foo, hello]" {
+		t.Fatalf("searchSummary() = %q", got)
+	}
+
+	if got := replaceSummary(rules); got != "[foo->bar, hello->world]" {
+		t.Fatalf("replaceSummary() = %q", got)
+	}
+}

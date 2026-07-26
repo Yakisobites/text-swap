@@ -32,20 +32,19 @@ func TestComputeMaxXOffset(t *testing.T) {
 		name         string
 		mode         Mode
 		raw          string
-		searchTerm   string
-		replaceTerm  string
+		rules        []Rule
 		viewport     int
 		wantMaxXOffs int
 	}{
 		{name: "search mode no scroll", mode: ModeSearch, raw: "hello", viewport: 10, wantMaxXOffs: 0},
 		{name: "search mode needs scroll", mode: ModeSearch, raw: "hello world", viewport: 5, wantMaxXOffs: 6},
-		{name: "diff mode uses longer replaced line", mode: ModeDiff, raw: "a", searchTerm: "a", replaceTerm: "alphabet", viewport: 3, wantMaxXOffs: 5},
+		{name: "diff mode uses longer replaced line", mode: ModeDiff, raw: "a", rules: []Rule{{Target: "a", Replacement: "alphabet"}}, viewport: 3, wantMaxXOffs: 5},
 		{name: "zero viewport returns zero", mode: ModeSearch, raw: "abcdef", viewport: 0, wantMaxXOffs: 0},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := computeMaxXOffset(tt.mode, tt.raw, tt.searchTerm, tt.replaceTerm, tt.viewport)
+			got := computeMaxXOffset(tt.mode, tt.raw, tt.rules, tt.viewport)
 			if got != tt.wantMaxXOffs {
 				t.Fatalf("computeMaxXOffset() = %d, want %d", got, tt.wantMaxXOffs)
 			}
@@ -59,7 +58,7 @@ func TestSliceAndHighlightContent(t *testing.T) {
 	tests := []struct {
 		name    string
 		content string
-		target  string
+		rules   []Rule
 		xOffset int
 		limit   int
 		want    string
@@ -67,16 +66,31 @@ func TestSliceAndHighlightContent(t *testing.T) {
 		{name: "slice ascii", content: "abcdef", xOffset: 2, limit: 3, want: "cde"},
 		{name: "slice rune safe", content: "あいうえお", xOffset: 1, limit: 2, want: "いう"},
 		{name: "offset beyond line", content: "abc", xOffset: 5, limit: 2, want: ""},
-		{name: "highlight target", content: "foo bar foo", target: "foo", xOffset: 0, limit: 20, want: "[foo] bar [foo]"},
+		{name: "highlight target", content: "foo bar foo", rules: []Rule{{Target: "foo"}}, xOffset: 0, limit: 20, want: "[foo] bar [foo]"},
 		{name: "multi line", content: "abcdef\nuvwxyz", xOffset: 1, limit: 3, want: "bcd\nvwx"},
+		{name: "highlight multiple rules", content: "foo bar", rules: []Rule{{Target: "foo"}, {Target: "bar"}}, xOffset: 0, limit: 20, want: "[foo] [bar]"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := sliceAndHighlightContent(tt.content, tt.target, tt.xOffset, tt.limit, highlight)
+			got := sliceAndHighlightContent(tt.content, tt.rules, tt.xOffset, tt.limit, func(_ int, s string) string {
+				return highlight(s)
+			})
 			if got != tt.want {
 				t.Fatalf("sliceAndHighlightContent() = %q, want %q", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestBuildReplacedContent_MultipleRules(t *testing.T) {
+	rules := []Rule{
+		{Target: "foo", Replacement: "bar"},
+		{Target: "bar", Replacement: "baz"},
+	}
+
+	got := buildReplacedContent("foo", rules)
+	if got != "baz" {
+		t.Fatalf("buildReplacedContent() = %q, want %q", got, "baz")
 	}
 }
