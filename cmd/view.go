@@ -84,23 +84,24 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "left", "h":
 			if m.xOffset > 0 {
 				m.xOffset--
-				m.updateContents()
+				m = m.updateContents()
 			}
 			return m, nil
 
 		case "right", "l":
-			m.xOffset++
-			m.updateContents()
+			// Prevent scrolling beyond the longest line
+			if m.xOffset < m.getMaxXOffset() {
+				m.xOffset++
+				m = m.updateContents()
+			}
 			return m, nil
 		}
 
 		if m.mode == modeDiff {
-			// Synchronize scrolling between left and right viewports
 			var cmdLeft, cmdRight tea.Cmd
 			m.vpLeft, cmdLeft = m.vpLeft.Update(msg)
 			m.vpRight, cmdRight = m.vpRight.Update(msg)
 
-			// Lock-step YOffset sync to maintain alignment
 			m.vpRight.YOffset = m.vpLeft.YOffset
 			return m, tea.Batch(cmdLeft, cmdRight)
 		}
@@ -149,14 +150,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		// Re-render viewport content on window resize
-		m.updateContents()
+		m = m.updateContents()
 	}
 
 	return m, tea.Batch(cmds...)
 }
 
 // Helper to refresh viewport contents applying xOffset and highlighting
-func (m *model) updateContents() {
+func (m model) updateContents() model {
 	if m.mode == modeSearch {
 		m.vpLeft.SetContent(m.processContent(m.rawContent, m.searchTerm, searchStyle, m.vpLeft.Width))
 	} else {
@@ -167,6 +168,7 @@ func (m *model) updateContents() {
 		m.vpLeft.SetContent(leftText)
 		m.vpRight.SetContent(rightText)
 	}
+	return m
 }
 
 // Slice content horizontally with UTF-8 safety and apply highlights
@@ -232,6 +234,39 @@ func (m model) View() string {
 	rightCol := lipgloss.JoinVertical(lipgloss.Left, rightTitle, rightPane)
 
 	return lipgloss.JoinHorizontal(lipgloss.Top, leftCol, rightCol)
+}
+
+// Calculate maximum horizontal scroll offset based on the longest line
+func (m model) getMaxXOffset() int {
+	vpWidth := m.vpLeft.Width
+	leftMax := maxLineLen(m.rawContent)
+
+	maxLen := leftMax
+	if m.mode == modeDiff {
+		replacedText := strings.ReplaceAll(m.rawContent, m.searchTerm, m.replaceTerm)
+		rightMax := maxLineLen(replacedText)
+		if rightMax > maxLen {
+			maxLen = rightMax
+		}
+	}
+
+	maxOffset := maxLen - vpWidth
+	if maxOffset < 0 {
+		return 0
+	}
+	return maxOffset
+}
+
+// Calculate the maximum line length in runes
+func maxLineLen(content string) int {
+	maxLen := 0
+	for _, line := range strings.Split(content, "\n") {
+		length := len([]rune(line))
+		if length > maxLen {
+			maxLen = length
+		}
+	}
+	return maxLen
 }
 
 // Flag variables
