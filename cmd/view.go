@@ -51,9 +51,10 @@ type model struct {
 	vpLeft  viewport.Model
 	vpRight viewport.Model
 
-	width  int
-	height int
-	ready  bool
+	width   int
+	height  int
+	xOffset int // Horizontal scroll offset
+	ready   bool
 }
 
 func newModel(mode viewMode, filePath, search, replace, content string) model {
@@ -78,6 +79,19 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "q", "ctrl+c":
 			return m, tea.Quit
+
+		// Horizontal scroll handling
+		case "left", "h":
+			if m.xOffset > 0 {
+				m.xOffset--
+				m.updateContents()
+			}
+			return m, nil
+
+		case "right", "l":
+			m.xOffset++
+			m.updateContents()
+			return m, nil
 		}
 
 		if m.mode == modeDiff {
@@ -98,7 +112,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
-		headerHeight := 2
+		headerHeight := 1
 		availableHeight := m.height - headerHeight
 
 		if availableHeight < 1 {
@@ -114,35 +128,75 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.mode == modeSearch {
 			m.vpLeft.Width = m.width
 			m.vpLeft.Height = availableHeight
-			m.vpLeft.SetContent(m.applyHighlight(m.rawContent, m.searchTerm, searchStyle))
 		} else {
-			// Calculate side-by-side pane dimensions with borders
-			borderHorizontalOverhead := 2
-			paneWidth := (m.width / 2) - borderHorizontalOverhead
-			if paneWidth < 10 {
-				paneWidth = 10
+			colWidth := m.width / 2
+			borderOverhead := 2
+
+			vpWidth := colWidth - borderOverhead
+			if vpWidth < 10 {
+				vpWidth = 10
 			}
 
-			paneHeight := availableHeight - 2 // Account for top/bottom borders
+			paneHeight := availableHeight - 3
 			if paneHeight < 1 {
 				paneHeight = 1
 			}
 
-			m.vpLeft.Width = paneWidth
+			m.vpLeft.Width = vpWidth
 			m.vpLeft.Height = paneHeight
-			m.vpRight.Width = paneWidth
+			m.vpRight.Width = vpWidth
 			m.vpRight.Height = paneHeight
-
-			leftText := m.applyHighlight(m.rawContent, m.searchTerm, searchStyle)
-			replacedText := strings.ReplaceAll(m.rawContent, m.searchTerm, m.replaceTerm)
-			rightText := m.applyHighlight(replacedText, m.replaceTerm, replaceStyle)
-
-			m.vpLeft.SetContent(leftText)
-			m.vpRight.SetContent(rightText)
 		}
+
+		// Re-render viewport content on window resize
+		m.updateContents()
 	}
 
 	return m, tea.Batch(cmds...)
+}
+
+// Helper to refresh viewport contents applying xOffset and highlighting
+func (m *model) updateContents() {
+	if m.mode == modeSearch {
+		m.vpLeft.SetContent(m.processContent(m.rawContent, m.searchTerm, searchStyle, m.vpLeft.Width))
+	} else {
+		leftText := m.processContent(m.rawContent, m.searchTerm, searchStyle, m.vpLeft.Width)
+		replacedText := strings.ReplaceAll(m.rawContent, m.searchTerm, m.replaceTerm)
+		rightText := m.processContent(replacedText, m.replaceTerm, replaceStyle, m.vpRight.Width)
+
+		m.vpLeft.SetContent(leftText)
+		m.vpRight.SetContent(rightText)
+	}
+}
+
+// Slice content horizontally with UTF-8 safety and apply highlights
+func (m model) processContent(content, target string, style lipgloss.Style, limitWidth int) string {
+	lines := strings.Split(content, "\n")
+	processedLines := make([]string, len(lines))
+
+	for i, line := range lines {
+		runes := []rune(line)
+		if m.xOffset >= len(runes) {
+			processedLines[i] = ""
+			continue
+		}
+
+		// Calculate visible slice range based on xOffset and pane width
+		end := m.xOffset + limitWidth
+		if limitWidth > 0 && end < len(runes) {
+			runes = runes[m.xOffset:end]
+		} else {
+			runes = runes[m.xOffset:]
+		}
+
+		visibleLine := string(runes)
+		if target != "" {
+			visibleLine = strings.ReplaceAll(visibleLine, target, style.Render(target))
+		}
+		processedLines[i] = visibleLine
+	}
+
+	return strings.Join(processedLines, "\n")
 }
 
 func (m model) applyHighlight(content, target string, style lipgloss.Style) string {
@@ -158,16 +212,21 @@ func (m model) View() string {
 	}
 
 	if m.mode == modeSearch {
-		header := headerStyle.Render(fmt.Sprintf("File: %s | Search: '%s'", m.filePath, m.searchTerm))
+		header := headerStyle.Width(m.width).Render(fmt.Sprintf("File: %s | Search: '%s'", m.filePath, m.searchTerm))
 		return lipgloss.JoinVertical(lipgloss.Left, header, m.vpLeft.View())
 	}
 
-	// Diff view mode layout
-	leftTitle := headerStyle.Render(fmt.Sprintf("Original: '%s'", m.searchTerm))
-	rightTitle := headerStyle.Render(fmt.Sprintf("Replaced: '%s'", m.replaceTerm))
+	// Diff view mode dimensions
+	colWidth := m.width / 2
 
-	leftPane := paneBorder.Width(m.vpLeft.Width).Render(m.vpLeft.View())
-	rightPane := paneBorder.Width(m.vpRight.Width).Render(m.vpRight.View())
+	// Restrain title width strictly to the column width
+	titleStyle := headerStyle.Width(colWidth).MaxHeight(1)
+	leftTitle := titleStyle.Render(fmt.Sprintf("Original: '%s'", m.searchTerm))
+	rightTitle := titleStyle.Render(fmt.Sprintf("Replaced: '%s'", m.replaceTerm))
+
+	// Enforce exact outer box width including borders
+	leftPane := paneBorder.Width(colWidth - 2).Render(m.vpLeft.View())
+	rightPane := paneBorder.Width(colWidth - 2).Render(m.vpRight.View())
 
 	leftCol := lipgloss.JoinVertical(lipgloss.Left, leftTitle, leftPane)
 	rightCol := lipgloss.JoinVertical(lipgloss.Left, rightTitle, rightPane)
